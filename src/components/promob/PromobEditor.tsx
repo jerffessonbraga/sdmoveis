@@ -3,6 +3,7 @@ import { ToolMode, FurnitureModule, ModuleTemplate, ViewportMode } from '@/types
 import ThreePreview from '@/components/ThreePreview';
 import { useToast } from '@/hooks/use-toast';
 import { generateAiChatResponse } from '@/services/geminiService';
+import BOMDialog from './BOMDialog';
 import { 
   ChevronDown,
   ChevronLeft, 
@@ -1159,46 +1160,12 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
       )}
 
       {showBudgetDialog && (
-        <Dialog title="Orçamento do Projeto" onClose={() => setShowBudgetDialog(false)} wide>
-          <div className="space-y-3">
-            <div className="bg-[#16213e] p-3 rounded border border-amber-500/20">
-              <p className="font-bold text-lg text-amber-100">{project.name}</p>
-              <p className="text-sm text-amber-300/70">Cliente: {project.clientName}</p>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="bg-[#16213e]">
-                <tr>
-                  <th className="p-2 text-left text-amber-300">Módulo</th>
-                  <th className="p-2 text-left text-amber-300">Dimensões</th>
-                  <th className="p-2 text-left text-amber-300">Acabamento</th>
-                  <th className="p-2 text-right text-amber-300">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {project.modules.map(m => (
-                  <tr key={m.id} className="border-b border-amber-500/10">
-                    <td className="p-2 text-amber-100">{m.type}</td>
-                    <td className="p-2 text-amber-300/70">{m.width}×{m.height}×{m.depth}mm</td>
-                    <td className="p-2 text-amber-300/70">{m.finish}</td>
-                    <td className="p-2 text-right font-medium text-amber-100">R$ {m.price.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-amber-500/20">
-                <tr>
-                  <td colSpan={3} className="p-2 font-bold text-amber-100">TOTAL</td>
-                  <td className="p-2 text-right font-bold text-amber-400">R$ {totalValue.toLocaleString('pt-BR')}</td>
-                </tr>
-              </tfoot>
-            </table>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowBudgetDialog(false)} className="px-4 py-1.5 bg-gray-700 rounded text-sm hover:bg-gray-600 text-white">Fechar</button>
-              <button onClick={() => { window.print(); }} className="px-4 py-1.5 bg-amber-600 text-amber-950 rounded text-sm hover:bg-amber-500 flex items-center gap-1 font-bold">
-                <Printer size={14} /> Imprimir
-              </button>
-            </div>
-          </div>
-        </Dialog>
+        <BOMDialog
+          modules={project.modules}
+          projectName={project.name}
+          clientName={project.clientName}
+          onClose={() => setShowBudgetDialog(false)}
+        />
       )}
 
       {showHelpDialog && (
