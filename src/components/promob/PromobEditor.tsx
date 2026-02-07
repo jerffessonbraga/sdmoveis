@@ -4,6 +4,9 @@ import ThreePreview from '@/components/ThreePreview';
 import { useToast } from '@/hooks/use-toast';
 import { generateAiChatResponse } from '@/services/geminiService';
 import BOMDialog from './BOMDialog';
+import TechnicalPlan2D from './TechnicalPlan2D';
+import DrillingPattern from './DrillingPattern';
+import EdgeBandingConfig from './EdgeBandingConfig';
 import { 
   ChevronDown,
   ChevronLeft, 
@@ -56,6 +59,8 @@ import {
   Bot,
   Lightbulb,
   Loader2,
+  Circle,
+  LayoutGrid,
 } from 'lucide-react';
 
 // Biblioteca expandida de móveis
@@ -218,6 +223,9 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showPlan2D, setShowPlan2D] = useState(false);
+  const [showDrilling, setShowDrilling] = useState(false);
+  const [showEdgeBanding, setShowEdgeBanding] = useState(false);
   
   // AI Assistant State
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
@@ -613,6 +621,7 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: 'Salvar Como...', action: () => setShowSaveDialog(true) },
           { label: '-' },
           { label: 'Exportar Imagem', action: exportImage },
+          { label: 'Planta 2D Técnica', action: () => setShowPlan2D(true) },
           { label: 'Gerar Orçamento', action: generateBudget },
           { label: '-' },
           { label: 'Imprimir...', shortcut: 'Ctrl+P', action: printProject },
@@ -649,6 +658,9 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: '-' },
           { label: 'Rotacionar 90°', action: () => rotateModule(90), disabled: !selectedId },
           { label: 'Espelhar', action: flipModule, disabled: !selectedId },
+          { label: '-' },
+          { label: 'Furação Automática', action: () => setShowDrilling(true), disabled: !selectedId },
+          { label: 'Configurar Bordas', action: () => setShowEdgeBanding(true), disabled: !selectedId },
           { label: '-' },
           { label: 'Alinhar Esquerda', action: () => alignModule('left'), disabled: !selectedId },
           { label: 'Centralizar', action: () => alignModule('center'), disabled: !selectedId },
@@ -1165,6 +1177,35 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           projectName={project.name}
           clientName={project.clientName}
           onClose={() => setShowBudgetDialog(false)}
+        />
+      )}
+
+      {showPlan2D && (
+        <TechnicalPlan2D
+          modules={project.modules}
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          wallHeight={project.wallHeight}
+          projectName={project.name}
+          clientName={project.clientName}
+          onClose={() => setShowPlan2D(false)}
+        />
+      )}
+
+      {showDrilling && selectedModule && (
+        <DrillingPattern
+          module={selectedModule}
+          onClose={() => setShowDrilling(false)}
+        />
+      )}
+
+      {showEdgeBanding && selectedModule && (
+        <EdgeBandingConfig
+          module={selectedModule}
+          onSave={(config) => {
+            toast({ title: "✓ Bordas configuradas", description: `Configuração salva para ${selectedModule.type}` });
+          }}
+          onClose={() => setShowEdgeBanding(false)}
         />
       )}
 
