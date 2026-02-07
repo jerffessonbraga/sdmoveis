@@ -253,6 +253,7 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
   const [showSunlight, setShowSunlight] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [technicalPoints, setTechnicalPoints] = useState<TechnicalPoint[]>([]);
+  const [showDimensionsDialog, setShowDimensionsDialog] = useState(false);
   
   // AI Assistant State
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
@@ -703,7 +704,7 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: snapEnabled ? 'v Snap Magnetico' : 'Snap Magnetico', action: () => setSnapEnabled(!snapEnabled) },
         ]} />
         <MenuBarItem label="Ambiente" items={[
-          { label: 'Dimensoes do Ambiente', action: () => toast({ title: "Dimensoes", description: `${project.floorWidth}x${project.floorDepth}x${project.wallHeight}mm` }) },
+          { label: 'Editar Dimensões...', action: () => setShowDimensionsDialog(true) },
           { label: 'Multiplos Ambientes', action: () => setShowMultiRoom(true) },
           { label: '-' },
           { label: 'Largura +500mm', action: () => setProject(p => ({ ...p, floorWidth: p.floorWidth + 500 })) },
@@ -1406,6 +1407,63 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           onRestore={(restored) => setProject(restored)}
           onClose={() => setShowVersionHistory(false)}
         />
+      )}
+
+      {showDimensionsDialog && (
+        <Dialog title="Dimensões do Ambiente" onClose={() => setShowDimensionsDialog(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-amber-400 mb-1">Largura (mm)</label>
+              <input
+                type="number"
+                value={project.floorWidth}
+                onChange={(e) => setProject(p => ({ ...p, floorWidth: Math.max(500, parseInt(e.target.value) || 500) }))}
+                className="w-full bg-[#16213e] border border-amber-500/30 rounded px-3 py-2 text-amber-100 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                min={500}
+                max={20000}
+                step={100}
+              />
+              <span className="text-[10px] text-amber-300/50">Min: 500mm | Max: 20.000mm</span>
+            </div>
+            <div>
+              <label className="block text-xs text-amber-400 mb-1">Profundidade (mm)</label>
+              <input
+                type="number"
+                value={project.floorDepth}
+                onChange={(e) => setProject(p => ({ ...p, floorDepth: Math.max(500, parseInt(e.target.value) || 500) }))}
+                className="w-full bg-[#16213e] border border-amber-500/30 rounded px-3 py-2 text-amber-100 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                min={500}
+                max={20000}
+                step={100}
+              />
+              <span className="text-[10px] text-amber-300/50">Min: 500mm | Max: 20.000mm</span>
+            </div>
+            <div>
+              <label className="block text-xs text-amber-400 mb-1">Altura do Teto (mm)</label>
+              <input
+                type="number"
+                value={project.wallHeight}
+                onChange={(e) => setProject(p => ({ ...p, wallHeight: Math.max(2000, parseInt(e.target.value) || 2000) }))}
+                className="w-full bg-[#16213e] border border-amber-500/30 rounded px-3 py-2 text-amber-100 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                min={2000}
+                max={6000}
+                step={100}
+              />
+              <span className="text-[10px] text-amber-300/50">Min: 2.000mm | Max: 6.000mm</span>
+            </div>
+            <div className="pt-2 border-t border-amber-500/20">
+              <p className="text-xs text-amber-300/70 mb-3">
+                Dimensões atuais: <span className="text-amber-400 font-bold">{project.floorWidth} × {project.floorDepth} × {project.wallHeight}mm</span>
+              </p>
+              <button 
+                onClick={() => setShowDimensionsDialog(false)}
+                className="w-full px-4 py-2 bg-gradient-to-b from-amber-500 to-amber-600 text-amber-950 rounded font-bold text-sm hover:from-amber-400 hover:to-amber-500"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   );
