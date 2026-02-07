@@ -122,16 +122,27 @@ const DraggableBox: React.FC<DraggableBoxProps> = ({
   const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
   const dragStarted = useRef(false);
 
+  // Cores baseadas no acabamento
+  const finishColors: Record<string, string> = useMemo(() => ({
+    'Branco Tx': '#f5f5f5',
+    'Preto Tx': '#2d2d2d',
+    'Carvalho Hanover': '#8B7355',
+    'Nogueira': '#5C4033',
+    'Cinza Urbano': '#6B6B6B',
+    'Amadeirado': '#A0522D',
+    'Freijó': '#8B7765',
+    'Rústico': '#8B6914',
+    'Champagne': '#F7E7CE',
+    'Off White': '#FAF0E6',
+    'Grafite': '#4A4A4A',
+  }), []);
+
   const color = useMemo(() => {
     if (isDragging) return '#4a90d9';
     if (snapInfo.snappedToWall || snapInfo.snappedToModule) return '#4CAF50';
-    switch (module.category) {
-      case "Cozinha": return "#8B5A2B";
-      case "Dormitório": return "#654321";
-      case "Sala": return "#A0522D";
-      default: return "#D2691E";
-    }
-  }, [module.category, isDragging, snapInfo]);
+    // Usa cor do acabamento se disponível
+    return finishColors[module.finish] || '#8B5A2B';
+  }, [module.finish, isDragging, snapInfo, finishColors]);
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
