@@ -314,12 +314,14 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
     toast({ title: "✓ Módulo inserido", description: template.type });
   };
 
-  const updateModule = (updates: Partial<FurnitureModule>) => {
-    if (!selectedId || !selectedModule) return;
+  const updateModule = useCallback((updates: Partial<FurnitureModule>) => {
+    if (!selectedId) return;
     const newModules = project.modules.map(m => m.id === selectedId ? { ...m, ...updates } : m);
     setProject(p => ({ ...p, modules: newModules }));
     setIsProjectModified(true);
-  };
+    // Salva no histórico para mudanças de acabamento e outras propriedades
+    saveHistory(newModules);
+  }, [selectedId, project.modules, saveHistory]);
 
   const deleteModule = () => {
     if (!selectedId) return;
