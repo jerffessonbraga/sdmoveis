@@ -13,6 +13,13 @@ import ExplodedViewDialog from './ExplodedViewDialog';
 import WalkthroughMode from './WalkthroughMode';
 import PhotorealisticRenderer from './PhotorealisticRenderer';
 import MultiRoomManager from './MultiRoomManager';
+import ProposalPDFGenerator from './ProposalPDFGenerator';
+import HardwareCatalog from './HardwareCatalog';
+import CustomModuleLibrary from './CustomModuleLibrary';
+import FloorPlanImporter from './FloorPlanImporter';
+import TechnicalPointsEditor, { TechnicalPoint } from './TechnicalPointsEditor';
+import SunlightSimulator, { SunConfig } from './SunlightSimulator';
+import VersionHistory from './VersionHistory';
 import { 
   ChevronDown,
   ChevronLeft, 
@@ -238,6 +245,14 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const [showPhotoRender, setShowPhotoRender] = useState(false);
   const [showMultiRoom, setShowMultiRoom] = useState(false);
+  const [showProposalPDF, setShowProposalPDF] = useState(false);
+  const [showHardwareCatalog, setShowHardwareCatalog] = useState(false);
+  const [showCustomLibrary, setShowCustomLibrary] = useState(false);
+  const [showFloorPlanImport, setShowFloorPlanImport] = useState(false);
+  const [showTechnicalPoints, setShowTechnicalPoints] = useState(false);
+  const [showSunlight, setShowSunlight] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [technicalPoints, setTechnicalPoints] = useState<TechnicalPoint[]>([]);
   
   // AI Assistant State
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
@@ -631,12 +646,16 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: 'Abrir...', shortcut: 'Ctrl+O', action: () => fileInputRef.current?.click() },
           { label: 'Salvar', shortcut: 'Ctrl+S', action: saveProject },
           { label: 'Salvar Como...', action: () => setShowSaveDialog(true) },
+          { label: 'Histórico de Versões', action: () => setShowVersionHistory(true) },
           { label: '-' },
+          { label: 'Importar Planta Baixa', action: () => setShowFloorPlanImport(true) },
           { label: 'Exportar Imagem', action: exportImage },
           { label: 'Exportar DXF/DWG', action: () => setShowDXFExport(true) },
           { label: 'Planta 2D Técnica', action: () => setShowPlan2D(true) },
           { label: 'Plano de Corte', action: () => setShowCuttingPlan(true) },
-          { label: 'Gerar Orçamento', action: generateBudget },
+          { label: '-' },
+          { label: 'Proposta PDF', action: () => setShowProposalPDF(true) },
+          { label: 'Gerar Orçamento (BOM)', action: generateBudget },
           { label: '-' },
           { label: 'Imprimir...', shortcut: 'Ctrl+P', action: printProject },
         ]} />
@@ -673,13 +692,13 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: 'Rotacionar 90', action: () => rotateModule(90), disabled: !selectedId },
           { label: 'Espelhar', action: flipModule, disabled: !selectedId },
           { label: '-' },
-          { label: 'Furacao Automatica', action: () => setShowDrilling(true), disabled: !selectedId },
+          { label: 'Furação Automática', action: () => setShowDrilling(true), disabled: !selectedId },
           { label: 'Configurar Bordas', action: () => setShowEdgeBanding(true), disabled: !selectedId },
           { label: 'Vista Explodida', action: () => setShowExplodedView(true), disabled: !selectedId },
           { label: '-' },
-          { label: 'Alinhar Esquerda', action: () => alignModule('left'), disabled: !selectedId },
-          { label: 'Centralizar', action: () => alignModule('center'), disabled: !selectedId },
-          { label: 'Alinhar Direita', action: () => alignModule('right'), disabled: !selectedId },
+          { label: 'Catálogo de Ferragens', action: () => setShowHardwareCatalog(true) },
+          { label: 'Biblioteca Personalizada', action: () => setShowCustomLibrary(true) },
+          { label: 'Pontos Técnicos', action: () => setShowTechnicalPoints(true) },
           { label: '-' },
           { label: snapEnabled ? 'v Snap Magnetico' : 'Snap Magnetico', action: () => setSnapEnabled(!snapEnabled) },
         ]} />
@@ -698,6 +717,7 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: '-' },
           { label: 'Walkthrough Virtual', action: () => setShowWalkthrough(true) },
           { label: 'Render Fotorrealista', action: () => setShowPhotoRender(true) },
+          { label: 'Simulador de Iluminação', action: () => setShowSunlight(true) },
         ]} />
         <MenuBarItem label="Ajuda" items={[
           { label: 'Atalhos do Teclado', action: () => setShowHelpDialog(true) },
@@ -1321,6 +1341,70 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
             setShowMultiRoom(false);
           }}
           currentModules={project.modules}
+        />
+      )}
+
+      {showProposalPDF && (
+        <ProposalPDFGenerator
+          modules={project.modules}
+          projectName={project.name}
+          clientName={project.clientName}
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          onClose={() => setShowProposalPDF(false)}
+        />
+      )}
+
+      {showHardwareCatalog && (
+        <HardwareCatalog
+          onSelect={(hardware) => toast({ title: "Ferragem selecionada", description: hardware.name })}
+          onClose={() => setShowHardwareCatalog(false)}
+        />
+      )}
+
+      {showCustomLibrary && (
+        <CustomModuleLibrary
+          currentModule={selectedModule || undefined}
+          onLoadModule={(mod) => {
+            const newMod = { ...mod, id: Math.random().toString(36).substr(2, 9), x: 0, z: 0 };
+            setProject(p => ({ ...p, modules: [...p.modules, newMod] }));
+            toast({ title: "Módulo carregado", description: mod.type });
+          }}
+          onClose={() => setShowCustomLibrary(false)}
+        />
+      )}
+
+      {showFloorPlanImport && (
+        <FloorPlanImporter
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          onImport={(config) => toast({ title: "Planta importada", description: `Escala: ${config.scale.toFixed(3)}` })}
+          onClose={() => setShowFloorPlanImport(false)}
+        />
+      )}
+
+      {showTechnicalPoints && (
+        <TechnicalPointsEditor
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          points={technicalPoints}
+          onSave={setTechnicalPoints}
+          onClose={() => setShowTechnicalPoints(false)}
+        />
+      )}
+
+      {showSunlight && (
+        <SunlightSimulator
+          onApply={(config) => toast({ title: "Iluminação aplicada", description: `${config.hour}h - Intensidade ${Math.round(config.intensity * 100)}%` })}
+          onClose={() => setShowSunlight(false)}
+        />
+      )}
+
+      {showVersionHistory && (
+        <VersionHistory
+          currentProject={project}
+          onRestore={(restored) => setProject(restored)}
+          onClose={() => setShowVersionHistory(false)}
         />
       )}
     </div>
