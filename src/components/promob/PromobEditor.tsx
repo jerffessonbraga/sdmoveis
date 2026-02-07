@@ -172,9 +172,17 @@ const MODULE_LIBRARY: ModuleTemplate[] = [
   { id: 'as_armario_tanque', type: 'Armário Tanque', category: 'Área Serviço', price: 1200, icon: '🧺', w: 700, h: 900, d: 500, z: 0 },
   { id: 'as_aereo', type: 'Aéreo Lavanderia', category: 'Área Serviço', price: 750, icon: '🗄️', w: 800, h: 500, d: 350, z: 1500 },
   { id: 'as_bancada', type: 'Bancada Passar', category: 'Área Serviço', price: 600, icon: '📏', w: 1000, h: 900, d: 400, z: 0 },
+  
+  // ELETRODOMÉSTICOS
+  { id: 'ap_geladeira', type: 'Geladeira', category: 'Eletrodomésticos', price: 0, icon: '🧊', w: 700, h: 1800, d: 650, z: 0, isAppliance: true, applianceType: 'fridge' },
+  { id: 'ap_fogao', type: 'Fogão', category: 'Eletrodomésticos', price: 0, icon: '🔥', w: 600, h: 900, d: 600, z: 0, isAppliance: true, applianceType: 'stove' },
+  { id: 'ap_maq_lavar', type: 'Máquina de Lavar', category: 'Eletrodomésticos', price: 0, icon: '🌀', w: 600, h: 850, d: 600, z: 0, isAppliance: true, applianceType: 'washing_machine' },
+  { id: 'ap_microondas', type: 'Microondas', category: 'Eletrodomésticos', price: 0, icon: '📻', w: 500, h: 300, d: 350, z: 900, isAppliance: true, applianceType: 'microwave' },
+  { id: 'ap_coifa', type: 'Coifa', category: 'Eletrodomésticos', price: 0, icon: '💨', w: 600, h: 400, d: 500, z: 1800, isAppliance: true, applianceType: 'range_hood' },
+  { id: 'ap_pia', type: 'Pia Inox', category: 'Eletrodomésticos', price: 0, icon: '🚰', w: 800, h: 200, d: 500, z: 870, isAppliance: true, applianceType: 'sink' },
 ];
 
-const CATEGORIES = ['Todos', 'Cozinha', 'Dormitório', 'Sala', 'Escritório', 'Banheiro', 'Área Serviço'];
+const CATEGORIES = ['Todos', 'Cozinha', 'Dormitório', 'Sala', 'Escritório', 'Banheiro', 'Área Serviço', 'Eletrodomésticos'];
 const FINISHES = ['Branco Tx', 'Preto Tx', 'Carvalho Hanover', 'Nogueira', 'Cinza Urbano', 'Amadeirado', 'Freijó', 'Rústico', 'Champagne', 'Off White', 'Grafite'];
 
 interface PromobEditorProps {
@@ -305,7 +313,11 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
       z: template.z || 0,
       finish: 'Branco Tx', 
       isRipado: template.type.includes('Ripado'), 
-      rotation: 0
+      rotation: 0,
+      isAppliance: template.isAppliance || false,
+      applianceType: template.applianceType,
+      hasGlass: template.hasGlass || false,
+      handleType: template.handleType || 'bar',
     };
     const newModules = [...project.modules, mod];
     saveHistory(newModules);

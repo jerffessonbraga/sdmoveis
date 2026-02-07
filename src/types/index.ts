@@ -46,6 +46,10 @@ export interface FurnitureModule {
   finish: string;
   isRipado: boolean;
   rotation: number;
+  isAppliance?: boolean;
+  applianceType?: 'fridge' | 'stove' | 'washing_machine' | 'microwave' | 'range_hood' | 'sink';
+  hasGlass?: boolean;
+  handleType?: 'bar' | 'knob' | 'pull' | 'shell';
 }
 
 export interface Project {
@@ -89,4 +93,8 @@ export interface ModuleTemplate {
   h: number;
   d: number;
   z: number;
+  isAppliance?: boolean;
+  applianceType?: 'fridge' | 'stove' | 'washing_machine' | 'microwave' | 'range_hood' | 'sink';
+  hasGlass?: boolean;
+  handleType?: 'bar' | 'knob' | 'pull' | 'shell';
 }
