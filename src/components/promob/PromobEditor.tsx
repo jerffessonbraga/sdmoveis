@@ -7,6 +7,12 @@ import BOMDialog from './BOMDialog';
 import TechnicalPlan2D from './TechnicalPlan2D';
 import DrillingPattern from './DrillingPattern';
 import EdgeBandingConfig from './EdgeBandingConfig';
+import DXFExporter from './DXFExporter';
+import CuttingPlanOptimizer from './CuttingPlanOptimizer';
+import ExplodedViewDialog from './ExplodedViewDialog';
+import WalkthroughMode from './WalkthroughMode';
+import PhotorealisticRenderer from './PhotorealisticRenderer';
+import MultiRoomManager from './MultiRoomManager';
 import { 
   ChevronDown,
   ChevronLeft, 
@@ -226,6 +232,12 @@ const PromobEditor: React.FC<PromobEditorProps> = ({ onRender, isRendering }) =>
   const [showPlan2D, setShowPlan2D] = useState(false);
   const [showDrilling, setShowDrilling] = useState(false);
   const [showEdgeBanding, setShowEdgeBanding] = useState(false);
+  const [showDXFExport, setShowDXFExport] = useState(false);
+  const [showCuttingPlan, setShowCuttingPlan] = useState(false);
+  const [showExplodedView, setShowExplodedView] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [showPhotoRender, setShowPhotoRender] = useState(false);
+  const [showMultiRoom, setShowMultiRoom] = useState(false);
   
   // AI Assistant State
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
@@ -621,7 +633,9 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: 'Salvar Como...', action: () => setShowSaveDialog(true) },
           { label: '-' },
           { label: 'Exportar Imagem', action: exportImage },
+          { label: 'Exportar DXF/DWG', action: () => setShowDXFExport(true) },
           { label: 'Planta 2D Técnica', action: () => setShowPlan2D(true) },
+          { label: 'Plano de Corte', action: () => setShowCuttingPlan(true) },
           { label: 'Gerar Orçamento', action: generateBudget },
           { label: '-' },
           { label: 'Imprimir...', shortcut: 'Ctrl+P', action: printProject },
@@ -656,20 +670,22 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: 'Mover', shortcut: 'M', action: () => setTool(ToolMode.MOVE) },
           { label: 'Rotacionar', shortcut: 'R', action: () => setTool(ToolMode.ROTATE) },
           { label: '-' },
-          { label: 'Rotacionar 90°', action: () => rotateModule(90), disabled: !selectedId },
+          { label: 'Rotacionar 90', action: () => rotateModule(90), disabled: !selectedId },
           { label: 'Espelhar', action: flipModule, disabled: !selectedId },
           { label: '-' },
-          { label: 'Furação Automática', action: () => setShowDrilling(true), disabled: !selectedId },
+          { label: 'Furacao Automatica', action: () => setShowDrilling(true), disabled: !selectedId },
           { label: 'Configurar Bordas', action: () => setShowEdgeBanding(true), disabled: !selectedId },
+          { label: 'Vista Explodida', action: () => setShowExplodedView(true), disabled: !selectedId },
           { label: '-' },
           { label: 'Alinhar Esquerda', action: () => alignModule('left'), disabled: !selectedId },
           { label: 'Centralizar', action: () => alignModule('center'), disabled: !selectedId },
           { label: 'Alinhar Direita', action: () => alignModule('right'), disabled: !selectedId },
           { label: '-' },
-          { label: snapEnabled ? '✓ Snap Magnético' : 'Snap Magnético', action: () => setSnapEnabled(!snapEnabled) },
+          { label: snapEnabled ? 'v Snap Magnetico' : 'Snap Magnetico', action: () => setSnapEnabled(!snapEnabled) },
         ]} />
         <MenuBarItem label="Ambiente" items={[
-          { label: 'Dimensões do Ambiente', action: () => toast({ title: "📐 Dimensões", description: `${project.floorWidth}x${project.floorDepth}x${project.wallHeight}mm` }) },
+          { label: 'Dimensoes do Ambiente', action: () => toast({ title: "Dimensoes", description: `${project.floorWidth}x${project.floorDepth}x${project.wallHeight}mm` }) },
+          { label: 'Multiplos Ambientes', action: () => setShowMultiRoom(true) },
           { label: '-' },
           { label: 'Largura +500mm', action: () => setProject(p => ({ ...p, floorWidth: p.floorWidth + 500 })) },
           { label: 'Largura -500mm', action: () => setProject(p => ({ ...p, floorWidth: Math.max(1000, p.floorWidth - 500) })) },
@@ -679,6 +695,9 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
           { label: '-' },
           { label: 'Altura +100mm', action: () => setProject(p => ({ ...p, wallHeight: p.wallHeight + 100 })) },
           { label: 'Altura -100mm', action: () => setProject(p => ({ ...p, wallHeight: Math.max(2000, p.wallHeight - 100) })) },
+          { label: '-' },
+          { label: 'Walkthrough Virtual', action: () => setShowWalkthrough(true) },
+          { label: 'Render Fotorrealista', action: () => setShowPhotoRender(true) },
         ]} />
         <MenuBarItem label="Ajuda" items={[
           { label: 'Atalhos do Teclado', action: () => setShowHelpDialog(true) },
@@ -1240,6 +1259,69 @@ ${project.modules.length > 0 ? `\nMódulos atuais:\n${project.modules.map(m => `
             <p className="text-amber-500 text-xs mt-4 italic">"Consagre ao Senhor tudo o que você faz"</p>
           </div>
         </Dialog>
+      )}
+
+      {showDXFExport && (
+        <DXFExporter
+          modules={project.modules}
+          projectName={project.name}
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          onClose={() => setShowDXFExport(false)}
+        />
+      )}
+
+      {showCuttingPlan && (
+        <CuttingPlanOptimizer
+          modules={project.modules}
+          projectName={project.name}
+          onClose={() => setShowCuttingPlan(false)}
+        />
+      )}
+
+      {showExplodedView && selectedModule && (
+        <ExplodedViewDialog
+          module={selectedModule}
+          onClose={() => setShowExplodedView(false)}
+        />
+      )}
+
+      {showWalkthrough && (
+        <WalkthroughMode
+          modules={project.modules}
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          wallHeight={project.wallHeight}
+          onClose={() => setShowWalkthrough(false)}
+        />
+      )}
+
+      {showPhotoRender && (
+        <PhotorealisticRenderer
+          modules={project.modules}
+          floorWidth={project.floorWidth}
+          floorDepth={project.floorDepth}
+          wallHeight={project.wallHeight}
+          onClose={() => setShowPhotoRender(false)}
+        />
+      )}
+
+      {showMultiRoom && (
+        <MultiRoomManager
+          onClose={() => setShowMultiRoom(false)}
+          onLoadRoom={(room) => {
+            setProject(p => ({
+              ...p,
+              name: room.name,
+              floorWidth: room.width,
+              floorDepth: room.depth,
+              wallHeight: room.height,
+              modules: room.modules,
+            }));
+            setShowMultiRoom(false);
+          }}
+          currentModules={project.modules}
+        />
       )}
     </div>
   );
