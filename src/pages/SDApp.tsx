@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
+import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
 import { SelectionCard } from '@/components/ui/selection-card';
 import { NavIcon } from '@/components/ui/nav-icon';
 import { DashboardStat } from '@/components/ui/dashboard-stat';
@@ -200,6 +201,7 @@ const App: React.FC = () => {
                 <NavIcon icon="layout-dashboard" label="Início" active={view === ViewMode.DASHBOARD} onClick={() => setView(ViewMode.DASHBOARD)} />
                 <NavIcon icon="box" label="Promob SD" active={view === ViewMode.PROMOB} onClick={() => setView(ViewMode.PROMOB)} />
                 <NavIcon icon="file-text" label="Vendas" active={view === ViewMode.CONTRACTS} onClick={() => setView(ViewMode.CONTRACTS)} />
+                <NavIcon icon="clock" label="Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
                 <NavIcon icon="message-square" label="CRM" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} isFab />
               </>
             ) : (
@@ -1081,6 +1083,11 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+        {/* TIME TRACKING */}
+        {view === ViewMode.TIME_TRACKING && authState === 'ADMIN' && (
+          <TimeTrackingPanel />
+        )}
     </div>
   );
 };

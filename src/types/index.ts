@@ -5,6 +5,7 @@ export enum ViewMode {
   CRM = 'CRM',
   CLIENT_PORTAL = 'CLIENT_PORTAL',
   PORTFOLIO = 'PORTFOLIO',
+  TIME_TRACKING = 'TIME_TRACKING',
 }
 
 export enum ToolMode {
