@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      employee_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          employee_id: string
+          hours: number | null
+          id: string
+          reference_date: string
+          type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          hours?: number | null
+          id?: string
+          reference_date?: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          hours?: number | null
+          id?: string
+          reference_date?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
