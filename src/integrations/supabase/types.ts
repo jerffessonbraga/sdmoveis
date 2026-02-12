@@ -82,6 +82,82 @@ export type Database = {
           },
         ]
       }
+      trip_locations: {
+        Row: {
+          accuracy: number | null
+          id: string
+          latitude: number
+          longitude: number
+          recorded_at: string
+          speed: number | null
+          trip_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          recorded_at?: string
+          speed?: number | null
+          trip_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+          speed?: number | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_locations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          created_at: string
+          description: string | null
+          employee_id: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           contact_name: string | null

@@ -8,7 +8,8 @@ import {
   Home, 
   Image,
   Plus,
-  Clock
+  Clock,
+  Navigation
 } from "lucide-react";
 
 interface NavIconProps {
@@ -28,6 +29,7 @@ const iconMap: Record<string, React.ElementType> = {
   "image": Image,
   "plus": Plus,
   "clock": Clock,
+  "navigation": Navigation,
 };
 
 export const NavIcon: React.FC<NavIconProps> = ({ icon, label, active, onClick, isFab }) => {

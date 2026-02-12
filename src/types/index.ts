@@ -6,6 +6,7 @@ export enum ViewMode {
   CLIENT_PORTAL = 'CLIENT_PORTAL',
   PORTFOLIO = 'PORTFOLIO',
   TIME_TRACKING = 'TIME_TRACKING',
+  FLEET = 'FLEET',
 }
 
 export enum ToolMode {
