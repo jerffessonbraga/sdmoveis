@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
 import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
+import EmployeePortal from '@/components/timetracking/EmployeePortal';
 import { SelectionCard } from '@/components/ui/selection-card';
 import { NavIcon } from '@/components/ui/nav-icon';
 import { DashboardStat } from '@/components/ui/dashboard-stat';
@@ -76,8 +77,9 @@ const LOUVORES = [
 
 const App: React.FC = () => {
   const { toast } = useToast();
-  const [authState, setAuthState] = useState<'SELECT' | 'LOGIN' | 'ADMIN' | 'CLIENT'>('SELECT');
-  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'CLIENT'>('ADMIN');
+  const [authState, setAuthState] = useState<'SELECT' | 'LOGIN' | 'ADMIN' | 'CLIENT' | 'EMPLOYEE'>('SELECT');
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'CLIENT' | 'EMPLOYEE'>('ADMIN');
+  const [employeeName, setEmployeeName] = useState('');
   const [password, setPassword] = useState("");
   const [view, setView] = useState(ViewMode.DASHBOARD);
   const [contracts, setContracts] = useState(INITIAL_CONTRACTS);
@@ -141,6 +143,14 @@ const App: React.FC = () => {
       setAuthState('ADMIN');
       setView(ViewMode.DASHBOARD);
       toast({ title: "✅ Bem-vindo!", description: "Acesso administrativo liberado" });
+    } else if (selectedRole === 'EMPLOYEE') {
+      if (!employeeName.trim()) {
+        toast({ title: "⚠️ Informe seu nome", description: "Digite seu nome cadastrado pelo administrador", variant: "destructive" });
+        return;
+      }
+      setAuthState('EMPLOYEE');
+      setView(ViewMode.TIME_TRACKING);
+      toast({ title: "✅ Bem-vindo!", description: `Área do funcionário - ${employeeName}` });
     } else {
       setAuthState('CLIENT');
       setView(ViewMode.CLIENT_PORTAL);
@@ -186,10 +196,10 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen flex bg-gray-100 overflow-hidden">
       {/* SIDEBAR */}
-      {(authState === 'ADMIN' || authState === 'CLIENT') && (
+      {(authState === 'ADMIN' || authState === 'CLIENT' || authState === 'EMPLOYEE') && (
         <aside className="w-24 bg-gradient-to-b from-gray-900 to-gray-950 flex flex-col items-center py-6 gap-4 shadow-xl">
           <button 
-            onClick={() => setView(authState === 'ADMIN' ? ViewMode.DASHBOARD : ViewMode.CLIENT_PORTAL)}
+            onClick={() => setView(authState === 'ADMIN' ? ViewMode.DASHBOARD : authState === 'EMPLOYEE' ? ViewMode.TIME_TRACKING : ViewMode.CLIENT_PORTAL)}
             className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-amber-500 shadow-lg hover:scale-105 transition-transform"
           >
             <img src={logoSD} alt="SD" className="w-full h-full object-cover" />
@@ -203,6 +213,10 @@ const App: React.FC = () => {
                 <NavIcon icon="file-text" label="Vendas" active={view === ViewMode.CONTRACTS} onClick={() => setView(ViewMode.CONTRACTS)} />
                 <NavIcon icon="clock" label="Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
                 <NavIcon icon="message-square" label="CRM" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} isFab />
+              </>
+            ) : authState === 'EMPLOYEE' ? (
+              <>
+                <NavIcon icon="clock" label="Meu Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
               </>
             ) : (
               <>
@@ -228,7 +242,7 @@ const App: React.FC = () => {
       )}
 
       {/* WORSHIP PLAYER GLOBAL - Aparece em todas as áreas logadas */}
-      {(authState === 'ADMIN' || authState === 'CLIENT') && (
+      {(authState === 'ADMIN' || authState === 'CLIENT' || authState === 'EMPLOYEE') && (
         <WorshipPlayer
           currentLouvor={currentLouvor}
           isPlaying={isPlaying}
@@ -858,6 +872,33 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </button>
+
+              {/* Card Funcionário */}
+              <button 
+                onClick={() => { setSelectedRole('EMPLOYEE'); setAuthState('LOGIN'); }}
+                className="group relative w-72 h-72 rounded-[32px] p-6 flex flex-col items-center justify-center transition-all duration-500 hover:scale-105 hover:-translate-y-3 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-900 to-gray-950 rounded-[32px]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-green-600/5 rounded-[32px]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-green-400/0 to-transparent group-hover:from-green-400/10 rounded-[32px] transition-all duration-500" />
+                <div className="absolute inset-0 rounded-[32px] border-2 border-green-500/30 group-hover:border-green-400/60 transition-colors shadow-2xl" />
+                <div className="absolute -top-20 -right-20 w-40 h-40 bg-green-500/5 rounded-full blur-3xl group-hover:bg-green-400/20 transition-all" />
+                
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="w-20 h-20 rounded-2xl border-2 border-green-500/40 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform bg-green-500/10 backdrop-blur-sm shadow-xl overflow-hidden group-hover:border-green-400/60">
+                    <img src={logoSD} alt="SD" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-green-400/80 group-hover:text-green-400 transition-colors" />
+                    <h3 className="text-white text-xl font-black tracking-wide uppercase">Funcionário</h3>
+                  </div>
+                  <p className="text-gray-400 text-sm">Registre seu ponto</p>
+                  <div className="mt-4 flex items-center gap-2 text-green-400/50 text-xs group-hover:text-green-400/70 transition-colors">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Ponto • Horas • Pagamento</span>
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -913,17 +954,19 @@ const App: React.FC = () => {
               <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-8 ${
                 selectedRole === 'ADMIN' 
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                  : selectedRole === 'EMPLOYEE'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                   : 'bg-white/10 text-white border border-white/20'
               }`}>
-                {selectedRole === 'ADMIN' ? <Shield className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-                {selectedRole === 'ADMIN' ? 'Administrador' : 'Cliente'}
+                {selectedRole === 'ADMIN' ? <Shield className="w-3.5 h-3.5" /> : selectedRole === 'EMPLOYEE' ? <Clock className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                {selectedRole === 'ADMIN' ? 'Administrador' : selectedRole === 'EMPLOYEE' ? 'Funcionário' : 'Cliente'}
               </div>
 
               {/* Logo estável - sem tremor */}
               <div className="relative mx-auto mb-6 w-24 h-24">
                 <div className="absolute inset-0 bg-gradient-to-b from-amber-400/30 to-amber-600/20 rounded-2xl blur-xl" />
                 <div className={`relative w-24 h-24 rounded-2xl overflow-hidden ring-2 ${
-                  selectedRole === 'ADMIN' ? 'ring-amber-500' : 'ring-white/50'
+                  selectedRole === 'ADMIN' ? 'ring-amber-500' : selectedRole === 'EMPLOYEE' ? 'ring-green-500' : 'ring-white/50'
                 } shadow-xl`} style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
                   <img 
                     src={logoSD} 
@@ -937,11 +980,25 @@ const App: React.FC = () => {
               <h2 className="text-2xl font-black text-white mb-2">
                 SD Móveis <span className="text-amber-400">Projetados</span>
               </h2>
-              <p className="text-gray-400 text-sm mb-8">Digite sua senha para continuar</p>
+              <p className="text-gray-400 text-sm mb-8">
+                {selectedRole === 'EMPLOYEE' ? 'Digite seu nome cadastrado' : 'Digite sua senha para continuar'}
+              </p>
               
               <div className="space-y-4">
+                {selectedRole === 'EMPLOYEE' && (
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="Seu nome completo" 
+                      className="w-full h-14 bg-white/5 hover:bg-white/8 rounded-xl px-6 border border-white/10 focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20 text-center text-lg text-white placeholder:text-gray-600 transition-all outline-none"
+                      value={employeeName} 
+                      onChange={(e) => setEmployeeName(e.target.value)} 
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    />
+                  </div>
+                )}
                 <div className="relative">
-                  <input 
+                  <input
                     type="password" 
                     placeholder="••••••••" 
                     className="w-full h-14 bg-white/5 hover:bg-white/8 rounded-xl px-6 border border-white/10 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 text-center text-lg tracking-[0.3em] text-white placeholder:text-gray-600 transition-all outline-none"
@@ -1087,6 +1144,11 @@ const App: React.FC = () => {
         {/* TIME TRACKING */}
         {view === ViewMode.TIME_TRACKING && authState === 'ADMIN' && (
           <TimeTrackingPanel />
+        )}
+
+        {/* EMPLOYEE PORTAL */}
+        {view === ViewMode.TIME_TRACKING && authState === 'EMPLOYEE' && (
+          <EmployeePortal employeeName={employeeName} />
         )}
     </div>
   );
