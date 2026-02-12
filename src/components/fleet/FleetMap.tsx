@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
+import React, { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -44,18 +43,13 @@ interface FleetMapProps {
   selectedTripId: string | null;
 }
 
-function FitBounds({ positions }: { positions: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (positions.length > 0) {
-      const bounds = L.latLngBounds(positions.map(p => L.latLng(p[0], p[1])));
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-    }
-  }, [positions, map]);
-  return null;
-}
+const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export default function FleetMap({ locations, activeTrips, employees, selectedTripId }: FleetMapProps) {
+  const mapRef = useRef<L.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const layersRef = useRef<L.LayerGroup | null>(null);
+
   const getEmployeeName = (empId: string) =>
     employees.find(e => e.id === empId)?.name || 'Motorista';
 
@@ -66,73 +60,80 @@ export default function FleetMap({ locations, activeTrips, employees, selectedTr
       if (!groups[loc.trip_id]) groups[loc.trip_id] = [];
       groups[loc.trip_id].push(loc);
     });
-    // Sort each group by time
-    Object.values(groups).forEach(arr => arr.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()));
+    Object.values(groups).forEach(arr =>
+      arr.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
+    );
     return groups;
   }, [locations]);
 
-  // Latest position per trip (for markers)
-  const latestPositions = useMemo(() => {
-    return Object.entries(tripRoutes).map(([tripId, locs]) => {
+  // Initialize map
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const map = L.map(containerRef.current, {
+      center: [-23.55, -46.63],
+      zoom: 13,
+      scrollWheelZoom: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    layersRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Update markers and routes
+  useEffect(() => {
+    const map = mapRef.current;
+    const layers = layersRef.current;
+    if (!map || !layers) return;
+
+    layers.clearLayers();
+
+    const allPositions: L.LatLng[] = [];
+
+    Object.entries(tripRoutes).forEach(([tripId, locs], idx) => {
+      const positions = locs.map(l => L.latLng(l.latitude, l.longitude));
+      allPositions.push(...positions);
+
+      const isSelected = selectedTripId === tripId;
+
+      // Draw route polyline
+      const polyline = L.polyline(positions, {
+        color: colors[idx % colors.length],
+        weight: isSelected ? 5 : 3,
+        opacity: isSelected ? 1 : 0.7,
+      });
+      layers.addLayer(polyline);
+
+      // Add marker at latest position
       const last = locs[locs.length - 1];
       const trip = activeTrips.find(t => t.id === tripId);
-      return {
-        tripId,
-        lat: last.latitude,
-        lng: last.longitude,
-        employeeName: trip ? getEmployeeName(trip.employee_id) : 'Motorista',
-        time: last.recorded_at,
-      };
+      const name = trip ? getEmployeeName(trip.employee_id) : 'Motorista';
+
+      const marker = L.marker([last.latitude, last.longitude], { icon: driverIcon });
+      marker.bindPopup(`
+        <div style="text-align:center">
+          <p style="font-weight:bold;margin:0">${name}</p>
+          <p style="font-size:12px;color:#666;margin:4px 0 0">${new Date(last.recorded_at).toLocaleString('pt-BR')}</p>
+        </div>
+      `);
+      layers.addLayer(marker);
     });
-  }, [tripRoutes, activeTrips, employees]);
 
-  // All positions for fitting bounds
-  const allPositions: [number, number][] = useMemo(() => {
-    return locations.map(l => [l.latitude, l.longitude] as [number, number]);
-  }, [locations]);
+    // Fit bounds
+    if (allPositions.length > 0) {
+      const bounds = L.latLngBounds(allPositions);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    }
+  }, [tripRoutes, activeTrips, employees, selectedTripId]);
 
-  // Default center (São Paulo)
-  const center: [number, number] = allPositions.length > 0
-    ? allPositions[allPositions.length - 1]
-    : [-23.55, -46.63];
-
-  const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-
-  return (
-    <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
-      {allPositions.length > 0 && <FitBounds positions={allPositions} />}
-
-      {Object.entries(tripRoutes).map(([tripId, locs], idx) => {
-        const positions: [number, number][] = locs.map(l => [l.latitude, l.longitude]);
-        const isSelected = selectedTripId === tripId;
-        return (
-          <Polyline
-            key={tripId}
-            positions={positions}
-            color={colors[idx % colors.length]}
-            weight={isSelected ? 5 : 3}
-            opacity={isSelected ? 1 : 0.7}
-          />
-        );
-      })}
-
-      {latestPositions.map((pos, idx) => (
-        <Marker key={pos.tripId} position={[pos.lat, pos.lng]} icon={driverIcon}>
-          <Popup>
-            <div className="text-center">
-              <p className="font-bold">{pos.employeeName}</p>
-              <p className="text-xs text-gray-500">
-                {new Date(pos.time).toLocaleString('pt-BR')}
-              </p>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-  );
+  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
 }
