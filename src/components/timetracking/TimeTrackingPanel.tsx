@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Clock, UserPlus, Play, Square, Calendar, DollarSign, Users, Trash2, Edit2, Save, X
+  Clock, UserPlus, Play, Square, Calendar, DollarSign, Users, Trash2, Edit2, Save, X, Plus, Minus
 } from 'lucide-react';
 
 interface Employee {
@@ -22,12 +22,24 @@ interface TimeEntry {
   notes: string | null;
 }
 
+interface Adjustment {
+  id: string;
+  employee_id: string;
+  type: 'overtime' | 'advance' | 'discount';
+  description: string | null;
+  amount: number;
+  hours: number;
+  reference_date: string;
+  created_at: string;
+}
+
 type Period = 'week' | 'biweekly' | 'month';
 
 export default function TimeTrackingPanel() {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [tab, setTab] = useState<'ponto' | 'funcionarios' | 'relatorio'>('ponto');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState('');
@@ -36,18 +48,28 @@ export default function TimeTrackingPanel() {
   const [period, setPeriod] = useState<Period>('month');
   const [loading, setLoading] = useState(true);
 
+  // Adjustment form
+  const [showAdjForm, setShowAdjForm] = useState(false);
+  const [adjEmployeeId, setAdjEmployeeId] = useState('');
+  const [adjType, setAdjType] = useState<'overtime' | 'advance' | 'discount'>('overtime');
+  const [adjDescription, setAdjDescription] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjHours, setAdjHours] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    const [empRes, teRes] = await Promise.all([
+    const [empRes, teRes, adjRes] = await Promise.all([
       supabase.from('employees').select('*').eq('active', true).order('name'),
       supabase.from('time_entries').select('*').order('clock_in', { ascending: false }).limit(500),
+      supabase.from('employee_adjustments').select('*').order('created_at', { ascending: false }).limit(500),
     ]);
     if (empRes.data) setEmployees(empRes.data);
     if (teRes.data) setTimeEntries(teRes.data);
+    if (adjRes.data) setAdjustments(adjRes.data as Adjustment[]);
     setLoading(false);
   };
 
@@ -129,6 +151,61 @@ export default function TimeTrackingPanel() {
 
   const tabClass = (t: string) =>
     `px-6 py-3 rounded-xl font-bold text-sm transition-all ${tab === t ? 'bg-amber-500 text-white shadow-lg' : 'bg-white text-gray-600 hover:bg-gray-100'}`;
+
+  // Adjustment helpers
+  const getEmployeeAdjustments = (employeeId: string) => {
+    const { start, end } = getPeriodDates();
+    return adjustments.filter(a => 
+      a.employee_id === employeeId &&
+      new Date(a.reference_date) >= start &&
+      new Date(a.reference_date) <= end
+    );
+  };
+
+  const calcOvertime = (employeeId: string) => {
+    const adjs = getEmployeeAdjustments(employeeId);
+    return adjs
+      .filter(a => a.type === 'overtime')
+      .reduce((sum, a) => sum + Number(a.amount), 0);
+  };
+
+  const calcDeductions = (employeeId: string) => {
+    const adjs = getEmployeeAdjustments(employeeId);
+    return adjs
+      .filter(a => a.type === 'advance' || a.type === 'discount')
+      .reduce((sum, a) => sum + Number(a.amount), 0);
+  };
+
+  const addAdjustment = async () => {
+    if (!adjEmployeeId || !adjAmount) {
+      toast({ title: '⚠️ Preencha os campos', variant: 'destructive' });
+      return;
+    }
+    const { error } = await supabase.from('employee_adjustments').insert({
+      employee_id: adjEmployeeId,
+      type: adjType,
+      description: adjDescription.trim() || null,
+      amount: parseFloat(adjAmount) || 0,
+      hours: parseFloat(adjHours) || 0,
+      reference_date: new Date().toISOString().split('T')[0],
+    });
+    if (error) {
+      toast({ title: '❌ Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: '✅ Lançamento adicionado!' });
+      setShowAdjForm(false);
+      setAdjDescription('');
+      setAdjAmount('');
+      setAdjHours('');
+      fetchData();
+    }
+  };
+
+  const deleteAdjustment = async (id: string) => {
+    await supabase.from('employee_adjustments').delete().eq('id', id);
+    toast({ title: '🗑️ Lançamento removido' });
+    fetchData();
+  };
 
   if (loading) {
     return (
@@ -303,20 +380,109 @@ export default function TimeTrackingPanel() {
       {/* ===== RELATÓRIO ===== */}
       {tab === 'relatorio' && (
         <div className="space-y-6">
-          <div className="flex gap-3">
-            {(['week', 'biweekly', 'month'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                  period === p ? 'bg-amber-500 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {p === 'week' ? 'Semana' : p === 'biweekly' ? 'Quinzena' : 'Mês'}
-              </button>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              {(['week', 'biweekly', 'month'] as Period[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    period === p ? 'bg-amber-500 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {p === 'week' ? 'Semana' : p === 'biweekly' ? 'Quinzena' : 'Mês'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { setShowAdjForm(!showAdjForm); if (!adjEmployeeId && employees.length) setAdjEmployeeId(employees[0].id); }}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Lançar Hora Extra / Desconto
+            </button>
           </div>
 
+          {/* Adjustment Form */}
+          {showAdjForm && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-lg">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-amber-500" /> Novo Lançamento
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Funcionário</label>
+                  <select
+                    value={adjEmployeeId}
+                    onChange={e => setAdjEmployeeId(e.target.value)}
+                    className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  >
+                    {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Tipo</label>
+                  <select
+                    value={adjType}
+                    onChange={e => setAdjType(e.target.value as any)}
+                    className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  >
+                    <option value="overtime">⏰ Hora Extra</option>
+                    <option value="advance">💵 Adiantamento / Vale</option>
+                    <option value="discount">📉 Desconto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">
+                    {adjType === 'overtime' ? 'Horas Extras' : 'Descrição'}
+                  </label>
+                  {adjType === 'overtime' ? (
+                    <input
+                      type="number"
+                      placeholder="Qtd horas"
+                      value={adjHours}
+                      onChange={e => setAdjHours(e.target.value)}
+                      className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      step="0.5"
+                    />
+                  ) : (
+                    <input
+                      placeholder="Ex: Vale, Adiantamento..."
+                      value={adjDescription}
+                      onChange={e => setAdjDescription(e.target.value)}
+                      className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={adjAmount}
+                    onChange={e => setAdjAmount(e.target.value)}
+                    className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    step="0.01"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={addAdjustment}
+                    className="bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-1"
+                  >
+                    <Save className="w-4 h-4" /> Salvar
+                  </button>
+                  <button
+                    onClick={() => setShowAdjForm(false)}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-3 rounded-xl font-bold text-sm transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Report Table */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -325,20 +491,31 @@ export default function TimeTrackingPanel() {
                   <th className="text-left px-6 py-4 text-sm font-bold text-gray-600">Cargo</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Horas</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Valor/h</th>
-                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Total a Receber</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-green-600">+ H.Extra</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-red-600">- Descontos</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Total Líquido</th>
                 </tr>
               </thead>
               <tbody>
                 {employees.map(emp => {
                   const hours = calcHours(emp.id);
-                  const total = hours * emp.hourly_rate;
+                  const base = hours * emp.hourly_rate;
+                  const overtime = calcOvertime(emp.id);
+                  const deductions = calcDeductions(emp.id);
+                  const total = base + overtime - deductions;
                   return (
                     <tr key={emp.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-6 py-4 font-bold text-gray-900">{emp.name}</td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{emp.role || '-'}</td>
                       <td className="px-6 py-4 text-right font-mono text-gray-700">{hours.toFixed(1)}h</td>
                       <td className="px-6 py-4 text-right text-gray-500">R$ {emp.hourly_rate.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right font-black text-green-600 text-lg">
+                      <td className="px-6 py-4 text-right font-bold text-green-600">
+                        {overtime > 0 ? `+R$ ${overtime.toFixed(2)}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-red-600">
+                        {deductions > 0 ? `-R$ ${deductions.toFixed(2)}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-lg" style={{ color: total >= 0 ? '#16a34a' : '#dc2626' }}>
                         R$ {total.toFixed(2)}
                       </td>
                     </tr>
@@ -352,13 +529,62 @@ export default function TimeTrackingPanel() {
                     {employees.reduce((s, e) => s + calcHours(e.id), 0).toFixed(1)}h
                   </td>
                   <td className="px-6 py-4"></td>
+                  <td className="px-6 py-4 text-right font-bold text-green-400">
+                    +R$ {employees.reduce((s, e) => s + calcOvertime(e.id), 0).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 text-right font-bold text-red-400">
+                    -R$ {employees.reduce((s, e) => s + calcDeductions(e.id), 0).toFixed(2)}
+                  </td>
                   <td className="px-6 py-4 text-right font-black text-amber-400 text-xl">
-                    R$ {employees.reduce((s, e) => s + calcHours(e.id) * e.hourly_rate, 0).toFixed(2)}
+                    R$ {employees.reduce((s, e) => {
+                      const h = calcHours(e.id);
+                      return s + (h * e.hourly_rate) + calcOvertime(e.id) - calcDeductions(e.id);
+                    }, 0).toFixed(2)}
                   </td>
                 </tr>
               </tfoot>
             </table>
           </div>
+
+          {/* Recent Adjustments */}
+          {adjustments.length > 0 && (
+            <div className="bg-white rounded-2xl p-6 shadow-lg">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-amber-500" /> Lançamentos Recentes
+              </h3>
+              <div className="space-y-2 max-h-64 overflow-auto">
+                {adjustments.slice(0, 20).map(adj => {
+                  const emp = employees.find(e => e.id === adj.employee_id);
+                  const isPositive = adj.type === 'overtime';
+                  return (
+                    <div key={adj.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full ${isPositive ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="font-bold text-gray-900">{emp?.name || 'Desconhecido'}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          adj.type === 'overtime' ? 'bg-green-100 text-green-700' :
+                          adj.type === 'advance' ? 'bg-amber-100 text-amber-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {adj.type === 'overtime' ? '⏰ Hora Extra' : adj.type === 'advance' ? '💵 Adiantamento' : '📉 Desconto'}
+                        </span>
+                        {adj.description && <span className="text-gray-400">{adj.description}</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {isPositive ? '+' : '-'}R$ {Number(adj.amount).toFixed(2)}
+                        </span>
+                        <span className="text-xs text-gray-400">{new Date(adj.reference_date).toLocaleDateString('pt-BR')}</span>
+                        <button onClick={() => deleteAdjustment(adj.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Histórico recente */}
           <div className="bg-white rounded-2xl p-6 shadow-lg">
