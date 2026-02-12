@@ -227,15 +227,24 @@ const App: React.FC = () => {
             )}
           </nav>
 
-          <div className="mt-auto space-y-2">
+          <div className="mt-auto space-y-2 flex flex-col items-center">
             <button className="p-3 text-gray-400 hover:text-amber-500 transition-colors">
               <Bell className="w-5 h-5" />
             </button>
             <button className="p-3 text-gray-400 hover:text-amber-500 transition-colors">
               <Settings className="w-5 h-5" />
             </button>
-            <button onClick={() => setAuthState('SELECT')} className="p-3 text-gray-400 hover:text-red-500 transition-colors">
+            <button 
+              onClick={() => setAuthState('SELECT')} 
+              className="p-3 text-gray-400 hover:text-amber-400 transition-colors flex flex-col items-center gap-1"
+              title="Voltar à seleção"
+            >
+              <ArrowRight className="w-5 h-5 rotate-180" />
+              <span className="text-[10px] font-bold">Voltar</span>
+            </button>
+            <button onClick={() => setAuthState('SELECT')} className="p-3 text-gray-400 hover:text-red-500 transition-colors flex flex-col items-center gap-1" title="Sair">
               <LogOut className="w-5 h-5" />
+              <span className="text-[10px] font-bold">Sair</span>
             </button>
           </div>
         </aside>
