@@ -93,6 +93,9 @@ const App: React.FC = () => {
   const [currentLouvor, setCurrentLouvor] = useState(LOUVORES[Math.floor(Math.random() * LOUVORES.length)]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [showClientContract, setShowClientContract] = useState(false);
+  const [showClientFinanceiro, setShowClientFinanceiro] = useState(false);
+  const [galleryFullscreen, setGalleryFullscreen] = useState<{title: string; url: string} | null>(null);
 
   // Função para tocar o louvor
   const playLouvor = () => {
@@ -658,12 +661,12 @@ const App: React.FC = () => {
 
             {/* Info Cards */}
             <div className="grid grid-cols-3 gap-6">
-              <div className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow">
+              <button onClick={() => setShowClientFinanceiro(true)} className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow cursor-pointer w-full">
                 <span className="text-4xl mb-4 block">💳</span>
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Financeiro</p>
                 <p className="text-xl font-black text-gray-900">3/5 Parcelas</p>
                 <p className="text-sm text-green-600 font-bold mt-1">Em dia ✓</p>
-              </div>
+              </button>
               <div className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow">
                 <span className="text-4xl mb-4 block">💬</span>
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Suporte</p>
@@ -672,14 +675,14 @@ const App: React.FC = () => {
                 </button>
                 <p className="text-sm text-gray-500 mt-1">Resposta em 2h</p>
               </div>
-              <div className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow">
+              <button onClick={() => setShowClientContract(true)} className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow cursor-pointer w-full">
                 <span className="text-4xl mb-4 block">📝</span>
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Contrato</p>
                 <p className="text-xl font-black text-gray-900">Assinado</p>
                 <p className="text-sm text-green-600 font-bold mt-1 flex items-center justify-center gap-1">
-                  <Shield className="w-4 h-4" /> Digitalmente
+                  <Shield className="w-4 h-4" /> Ver Detalhes
                 </p>
-              </div>
+              </button>
             </div>
 
             {/* Timeline */}
@@ -745,10 +748,23 @@ const App: React.FC = () => {
                   <div className="aspect-video overflow-hidden relative">
                     <img src={item.url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                      <button className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 hover:scale-110 transition-transform">
+                      <button 
+                        onClick={() => setGalleryFullscreen({ title: item.title, url: item.url })}
+                        className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 hover:scale-110 transition-transform"
+                      >
                         <Eye className="w-5 h-5" />
                       </button>
-                      <button className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 hover:scale-110 transition-transform">
+                      <button 
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = item.url;
+                          a.download = `${item.title.replace(/\s/g, '-')}.jpg`;
+                          a.target = '_blank';
+                          a.click();
+                          toast({ title: "📥 Download iniciado", description: item.title });
+                        }}
+                        className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 hover:scale-110 transition-transform"
+                      >
                         <Download className="w-5 h-5" />
                       </button>
                     </div>
@@ -757,11 +773,31 @@ const App: React.FC = () => {
                     <p className="font-black text-gray-900">{item.title}</p>
                     <p className="text-sm text-gray-500 mt-1">{item.desc}</p>
                     <div className="flex gap-3 mt-4">
-                      <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors">
+                      <button 
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = item.url;
+                          a.download = `${item.title.replace(/\s/g, '-')}-4K.jpg`;
+                          a.target = '_blank';
+                          a.click();
+                          toast({ title: "📥 Download 4K iniciado", description: item.title });
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                      >
                         <Download className="w-4 h-4" />
                         Download 4K
                       </button>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors">
+                      <button 
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({ title: item.title, text: `Veja o render: ${item.title}`, url: item.url });
+                          } else {
+                            navigator.clipboard.writeText(item.url);
+                            toast({ title: "🔗 Link copiado!", description: "Cole onde quiser compartilhar" });
+                          }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                      >
                         <Share2 className="w-4 h-4" />
                         Compartilhar
                       </button>
@@ -1129,6 +1165,153 @@ const App: React.FC = () => {
                   Editar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CLIENT CONTRACT MODAL */}
+      {showClientContract && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-3xl w-[550px] max-h-[85vh] overflow-auto shadow-2xl">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-t-3xl flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2"><FileText className="w-5 h-5 text-amber-400" /> Meu Contrato</h3>
+                <p className="text-gray-400 text-sm">Cozinha Gourmet Lux</p>
+              </div>
+              <button onClick={() => setShowClientContract(false)} className="text-white/60 hover:text-white"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <p className="text-xs text-gray-500 uppercase font-bold">Valor Total</p>
+                  <p className="text-2xl font-black text-amber-600">R$ 45.000</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <p className="text-xs text-gray-500 uppercase font-bold">Status</p>
+                  <p className="text-xl font-bold text-blue-600">Em Produção</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl space-y-3">
+                <p className="text-xs text-gray-500 uppercase font-bold">Detalhes do Contrato</p>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Data de Assinatura:</span><span className="font-bold">01/02/2024</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Previsão de Entrega:</span><span className="font-bold">15/03/2024</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Tipo de Projeto:</span><span className="font-bold">Cozinha Planejada</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Material:</span><span className="font-bold">MDF Premium + Granito</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Garantia:</span><span className="font-bold">5 Anos</span></div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                <p className="text-xs text-green-600 uppercase font-bold mb-1">✅ Contrato Assinado Digitalmente</p>
+                <p className="text-sm text-green-700">Assinado em 01/02/2024 às 14:32</p>
+              </div>
+              <button 
+                onClick={() => {
+                  toast({ title: "📄 PDF Gerado", description: "Seu contrato está sendo baixado" });
+                }}
+                className="w-full bg-amber-600 text-white py-3 rounded-xl font-bold hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                Baixar Contrato PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CLIENT FINANCEIRO MODAL */}
+      {showClientFinanceiro && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-3xl w-[550px] max-h-[85vh] overflow-auto shadow-2xl">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-t-3xl flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2"><DollarSign className="w-5 h-5 text-green-400" /> Financeiro</h3>
+                <p className="text-gray-400 text-sm">Acompanhamento de pagamentos</p>
+              </div>
+              <button onClick={() => setShowClientFinanceiro(false)} className="text-white/60 hover:text-white"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                  <p className="text-xs text-green-600 uppercase font-bold">Pago</p>
+                  <p className="text-2xl font-black text-green-600">R$ 27.000</p>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                  <p className="text-xs text-amber-600 uppercase font-bold">Restante</p>
+                  <p className="text-2xl font-black text-amber-600">R$ 18.000</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <p className="text-xs text-gray-500 uppercase font-bold mb-3">Parcelas</p>
+                {[
+                  { num: 1, valor: 9000, data: '01/02/2024', status: 'Pago' },
+                  { num: 2, valor: 9000, data: '01/03/2024', status: 'Pago' },
+                  { num: 3, valor: 9000, data: '01/04/2024', status: 'Pago' },
+                  { num: 4, valor: 9000, data: '01/05/2024', status: 'Pendente' },
+                  { num: 5, valor: 9000, data: '01/06/2024', status: 'Pendente' },
+                ].map(p => (
+                  <div key={p.num} className="flex justify-between items-center py-3 border-b last:border-0">
+                    <div>
+                      <p className="font-bold text-gray-900">Parcela {p.num}/5</p>
+                      <p className="text-xs text-gray-500">{p.data}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">R$ {p.valor.toLocaleString()}</p>
+                      <span className={`text-xs font-bold ${p.status === 'Pago' ? 'text-green-600' : 'text-amber-600'}`}>
+                        {p.status === 'Pago' ? '✅ Pago' : '⏳ Pendente'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <p className="text-sm text-blue-700 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Próximo vencimento: <span className="font-bold">01/05/2024</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GALLERY FULLSCREEN */}
+      {galleryFullscreen && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-6">
+          <button onClick={() => setGalleryFullscreen(null)} className="absolute top-6 right-6 text-white hover:text-amber-500 transition-colors">
+            <X className="w-8 h-8" />
+          </button>
+          <div className="max-w-5xl w-full text-center">
+            <img src={galleryFullscreen.url} alt={galleryFullscreen.title} className="w-full rounded-3xl shadow-2xl" />
+            <p className="text-white text-xl font-black mt-6">{galleryFullscreen.title}</p>
+            <div className="flex gap-4 justify-center mt-4">
+              <button 
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = galleryFullscreen.url;
+                  a.download = `${galleryFullscreen.title.replace(/\s/g, '-')}-4K.jpg`;
+                  a.target = '_blank';
+                  a.click();
+                  toast({ title: "📥 Download iniciado" });
+                }}
+                className="bg-amber-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-amber-700 transition-colors flex items-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                Download 4K
+              </button>
+              <button 
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({ title: galleryFullscreen.title, url: galleryFullscreen.url });
+                  } else {
+                    navigator.clipboard.writeText(galleryFullscreen.url);
+                    toast({ title: "🔗 Link copiado!" });
+                  }
+                }}
+                className="bg-white/10 text-white px-8 py-3 rounded-xl font-bold hover:bg-white/20 transition-colors flex items-center gap-2"
+              >
+                <Share2 className="w-5 h-5" />
+                Compartilhar
+              </button>
             </div>
           </div>
         </div>
