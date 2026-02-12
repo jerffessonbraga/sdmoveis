@@ -197,7 +197,7 @@ const App: React.FC = () => {
     <div className="h-screen w-screen flex bg-gray-100 overflow-hidden">
       {/* SIDEBAR */}
       {(authState === 'ADMIN' || authState === 'CLIENT' || authState === 'EMPLOYEE') && (
-        <aside className="w-24 bg-gradient-to-b from-gray-900 to-gray-950 flex flex-col items-center py-6 gap-4 shadow-xl">
+        <aside className="w-24 bg-gradient-to-b from-gray-900 to-gray-950 flex flex-col items-center py-4 gap-2 shadow-xl min-h-0 overflow-y-auto">
           <button 
             onClick={() => setView(authState === 'ADMIN' ? ViewMode.DASHBOARD : authState === 'EMPLOYEE' ? ViewMode.TIME_TRACKING : ViewMode.CLIENT_PORTAL)}
             className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-amber-500 shadow-lg hover:scale-105 transition-transform"
