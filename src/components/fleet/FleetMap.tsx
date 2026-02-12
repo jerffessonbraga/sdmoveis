@@ -71,8 +71,8 @@ export default function FleetMap({ locations, activeTrips, employees, selectedTr
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [-23.55, -46.63],
-      zoom: 13,
+      center: [-5.08, -38.76],
+      zoom: 8,
       scrollWheelZoom: true,
     });
 
