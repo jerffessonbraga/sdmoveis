@@ -3,6 +3,8 @@ import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
 import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
 import EmployeePortal from '@/components/timetracking/EmployeePortal';
+import DriverTripPanel from '@/components/fleet/DriverTripPanel';
+import FleetAdminPanel from '@/components/fleet/FleetAdminPanel';
 import { SelectionCard } from '@/components/ui/selection-card';
 import { NavIcon } from '@/components/ui/nav-icon';
 import { DashboardStat } from '@/components/ui/dashboard-stat';
@@ -212,11 +214,13 @@ const App: React.FC = () => {
                 <NavIcon icon="box" label="Promob SD" active={view === ViewMode.PROMOB} onClick={() => setView(ViewMode.PROMOB)} />
                 <NavIcon icon="file-text" label="Vendas" active={view === ViewMode.CONTRACTS} onClick={() => setView(ViewMode.CONTRACTS)} />
                 <NavIcon icon="clock" label="Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
+                <NavIcon icon="navigation" label="Frota" active={view === ViewMode.FLEET} onClick={() => setView(ViewMode.FLEET)} />
                 <NavIcon icon="message-square" label="CRM" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} isFab />
               </>
             ) : authState === 'EMPLOYEE' ? (
               <>
                 <NavIcon icon="clock" label="Meu Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
+                <NavIcon icon="navigation" label="Viagens" active={view === ViewMode.FLEET} onClick={() => setView(ViewMode.FLEET)} />
               </>
             ) : (
               <>
@@ -1158,6 +1162,18 @@ const App: React.FC = () => {
         {/* EMPLOYEE PORTAL */}
         {view === ViewMode.TIME_TRACKING && authState === 'EMPLOYEE' && (
           <EmployeePortal employeeName={employeeName} />
+        )}
+
+        {/* FLEET - ADMIN */}
+        {view === ViewMode.FLEET && authState === 'ADMIN' && (
+          <FleetAdminPanel />
+        )}
+
+        {/* FLEET - EMPLOYEE */}
+        {view === ViewMode.FLEET && authState === 'EMPLOYEE' && (
+          <div className="p-8 space-y-6 overflow-auto h-full bg-gradient-to-br from-gray-50 to-gray-100">
+            <DriverTripPanel employeeId="" employeeName={employeeName} />
+          </div>
         )}
     </div>
   );
