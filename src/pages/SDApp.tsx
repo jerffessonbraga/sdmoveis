@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
 import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
@@ -13,6 +13,7 @@ import PromobEditor from '@/components/promob/PromobEditor';
 import { useToast } from '@/hooks/use-toast';
 import logoSD from '@/assets/logo-sd.jpeg';
 import { WorshipPlayer } from '@/components/WorshipPlayer';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   LogOut, 
   Download,
@@ -96,6 +97,45 @@ const App: React.FC = () => {
   const [showClientContract, setShowClientContract] = useState(false);
   const [showClientFinanceiro, setShowClientFinanceiro] = useState(false);
   const [galleryFullscreen, setGalleryFullscreen] = useState<{title: string; url: string} | null>(null);
+  const [galleryItems, setGalleryItems] = useState<{title: string; desc: string; url: string}[]>([]);
+
+  // Fetch gallery images from database when client logs in
+  useEffect(() => {
+    if (authState === 'CLIENT') {
+      const fetchGallery = async () => {
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('access_code', password)
+          .limit(1);
+        
+        if (clients && clients.length > 0) {
+          const { data: projects } = await supabase
+            .from('client_projects')
+            .select('id')
+            .eq('client_id', clients[0].id)
+            .limit(1);
+          
+          if (projects && projects.length > 0) {
+            const { data: gallery } = await supabase
+              .from('project_gallery')
+              .select('*')
+              .eq('project_id', projects[0].id)
+              .order('created_at');
+            
+            if (gallery && gallery.length > 0) {
+              setGalleryItems(gallery.map(g => ({
+                title: g.title,
+                desc: g.description || '',
+                url: g.image_url
+              })));
+            }
+          }
+        }
+      };
+      fetchGallery();
+    }
+  }, [authState, password]);
 
   // Função para tocar o louvor
   const playLouvor = () => {
@@ -738,12 +778,7 @@ const App: React.FC = () => {
             </header>
 
             <div className="grid grid-cols-2 gap-8">
-              {[
-                { title: "Cozinha Vista Principal", desc: "Render fotorrealista em 4K", url: "https://images.unsplash.com/photo-1556912177-f547c12dd0ee?q=80&w=1200" },
-                { title: "Dormitório Master Lux", desc: "Iluminação natural simulada", url: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?q=80&w=1200" },
-                { title: "Sala de Estar Integrada", desc: "Vista panorâmica", url: "https://images.unsplash.com/photo-1631679706909-1844bbd07221?q=80&w=1200" },
-                { title: "Home Office Premium", desc: "Design minimalista", url: "https://images.unsplash.com/photo-1593062096033-9a26b09da705?q=80&w=1200" },
-              ].map((item, i) => (
+              {galleryItems.map((item, i) => (
                 <div key={i} className="bg-white rounded-3xl shadow-xl overflow-hidden group">
                   <div className="aspect-video overflow-hidden relative">
                     <img src={item.url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
