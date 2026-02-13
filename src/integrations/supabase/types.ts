@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_projects: {
+        Row: {
+          client_id: string
+          created_at: string
+          estimated_delivery: string | null
+          id: string
+          material: string | null
+          name: string
+          payment_status: string | null
+          project_type: string | null
+          signed_at: string | null
+          status: string
+          total_value: number
+          updated_at: string
+          warranty: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          estimated_delivery?: string | null
+          id?: string
+          material?: string | null
+          name: string
+          payment_status?: string | null
+          project_type?: string | null
+          signed_at?: string | null
+          status?: string
+          total_value?: number
+          updated_at?: string
+          warranty?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          estimated_delivery?: string | null
+          id?: string
+          material?: string | null
+          name?: string
+          payment_status?: string | null
+          project_type?: string | null
+          signed_at?: string | null
+          status?: string
+          total_value?: number
+          updated_at?: string
+          warranty?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          access_code: string
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_code: string
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_code?: string
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employee_adjustments: {
         Row: {
           amount: number
@@ -87,6 +176,164 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_gallery: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string
+          project_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url: string
+          project_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          project_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_gallery_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          paid_at: string | null
+          project_id: string
+          status: string
+          total_installments: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          paid_at?: string | null
+          project_id: string
+          status?: string
+          total_installments: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          paid_at?: string | null
+          project_id?: string
+          status?: string
+          total_installments?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_installments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_production_steps: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          progress: number
+          project_id: string
+          sort_order: number
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          progress?: number
+          project_id: string
+          sort_order?: number
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          progress?: number
+          project_id?: string
+          sort_order?: number
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_production_steps_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_timeline: {
+        Row: {
+          created_at: string
+          done: boolean
+          icon: string | null
+          id: string
+          label: string
+          project_id: string
+          sort_order: number
+          step_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          icon?: string | null
+          id?: string
+          label: string
+          project_id: string
+          sort_order?: number
+          step_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          icon?: string | null
+          id?: string
+          label?: string
+          project_id?: string
+          sort_order?: number
+          step_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timeline_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_entries: {
         Row: {
