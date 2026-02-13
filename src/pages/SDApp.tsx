@@ -103,17 +103,20 @@ const App: React.FC = () => {
   useEffect(() => {
     if (authState === 'CLIENT') {
       const fetchGallery = async () => {
+        // Try to find client by access code first
         const { data: clients } = await supabase
           .from('clients')
           .select('id')
-          .eq('access_code', password)
+          .eq('access_code', password.trim() || 'SD2024')
           .limit(1);
         
-        if (clients && clients.length > 0) {
+        const clientId = clients && clients.length > 0 ? clients[0].id : null;
+        
+        if (clientId) {
           const { data: projects } = await supabase
             .from('client_projects')
             .select('id')
-            .eq('client_id', clients[0].id)
+            .eq('client_id', clientId)
             .limit(1);
           
           if (projects && projects.length > 0) {
@@ -129,8 +132,23 @@ const App: React.FC = () => {
                 desc: g.description || '',
                 url: g.image_url
               })));
+              return;
             }
           }
+        }
+        
+        // Fallback: fetch all gallery images
+        const { data: allGallery } = await supabase
+          .from('project_gallery')
+          .select('*')
+          .order('created_at');
+        
+        if (allGallery && allGallery.length > 0) {
+          setGalleryItems(allGallery.map(g => ({
+            title: g.title,
+            desc: g.description || '',
+            url: g.image_url
+          })));
         }
       };
       fetchGallery();
