@@ -7,6 +7,7 @@ export enum ViewMode {
   PORTFOLIO = 'PORTFOLIO',
   TIME_TRACKING = 'TIME_TRACKING',
   FLEET = 'FLEET',
+  AFTER_SALES = 'AFTER_SALES',
 }
 
 export enum ToolMode {
