@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
 import AfterSalesPanel from '@/components/client/AfterSalesPanel';
+import WarrantyCertificate from '@/components/client/WarrantyCertificate';
+import ProjectCostPanel from '@/components/admin/ProjectCostPanel';
+import QualityCheckPanel from '@/components/admin/QualityCheckPanel';
 import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
 import EmployeePortal from '@/components/timetracking/EmployeePortal';
 import DriverTripPanel from '@/components/fleet/DriverTripPanel';
@@ -294,6 +297,7 @@ const App: React.FC = () => {
               <>
                 <NavIcon icon="home" label="Painel" active={view === ViewMode.CLIENT_PORTAL} onClick={() => setView(ViewMode.CLIENT_PORTAL)} />
                 <NavIcon icon="image" label="Galeria" active={view === ViewMode.PORTFOLIO} onClick={() => setView(ViewMode.PORTFOLIO)} />
+                <NavIcon icon="shield" label="Garantia" active={view === ViewMode.WARRANTY} onClick={() => setView(ViewMode.WARRANTY)} />
                 <NavIcon icon="message-square" label="Chat" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} />
                 <NavIcon icon="book-open" label="Pós-Venda" active={view === ViewMode.AFTER_SALES} onClick={() => setView(ViewMode.AFTER_SALES)} />
               </>
@@ -630,10 +634,24 @@ const App: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors">
-                            <Edit className="w-4 h-4" />
+                          <button 
+                            onClick={() => { setSelectedContract(contract); setView(ViewMode.QUALITY_CHECK); }}
+                            className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors"
+                            title="Controle de Qualidade"
+                          >
+                            <CheckCircle className="w-4 h-4" />
                           </button>
-                          <button className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors">
+                          <button 
+                            onClick={() => { setSelectedContract(contract); setView(ViewMode.PROJECT_COSTS); }}
+                            className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Custo Real da Obra"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setView(ViewMode.CRM)}
+                            className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors"
+                          >
                             <MessageCircle className="w-4 h-4" />
                           </button>
                         </div>
@@ -932,6 +950,34 @@ const App: React.FC = () => {
         {/* AFTER SALES */}
         {view === ViewMode.AFTER_SALES && authState === 'CLIENT' && (
           <AfterSalesPanel />
+        )}
+
+        {/* WARRANTY CERTIFICATE */}
+        {view === ViewMode.WARRANTY && authState === 'CLIENT' && (
+          <div className="p-8 overflow-auto h-full bg-gradient-to-br from-gray-50 to-gray-100">
+            <WarrantyCertificate
+              projectName={clientProject?.name || 'Projeto SD'}
+              clientName={clientName || 'Cliente'}
+              signedAt={clientProject?.signed_at}
+              warranty={clientProject?.warranty}
+              material={clientProject?.material}
+              projectType={clientProject?.project_type}
+            />
+          </div>
+        )}
+
+        {/* QUALITY CHECK - Admin */}
+        {view === ViewMode.QUALITY_CHECK && authState === 'ADMIN' && selectedContract && (
+          <div className="p-8 overflow-auto h-full bg-gradient-to-br from-gray-50 to-gray-100">
+            <QualityCheckPanel projectId={selectedContract.id} projectName={selectedContract.projectName} />
+          </div>
+        )}
+
+        {/* PROJECT COSTS - Admin */}
+        {view === ViewMode.PROJECT_COSTS && authState === 'ADMIN' && selectedContract && (
+          <div className="p-8 overflow-auto h-full bg-gradient-to-br from-gray-50 to-gray-100">
+            <ProjectCostPanel projectId={selectedContract.id} projectName={selectedContract.projectName} totalValue={selectedContract.value} />
+          </div>
         )}
       </main>
 
