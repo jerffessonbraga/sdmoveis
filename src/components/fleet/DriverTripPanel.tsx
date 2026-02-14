@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, Play, Square, MapPin, Clock, Route } from 'lucide-react';
+import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 
 interface Trip {
@@ -12,10 +12,25 @@ interface Trip {
   description: string | null;
 }
 
+interface ChecklistItem {
+  id: string;
+  label: string;
+  checked: boolean;
+  sort_order: number;
+}
+
 interface DriverTripPanelProps {
   employeeId: string;
   employeeName: string;
 }
+
+const DEFAULT_CHECKLIST = [
+  'Puxadores instalados corretamente',
+  'Portas alinhadas e reguladas',
+  'Limpeza do ambiente concluída',
+  'Cliente conferiu e assinou',
+  'Ferramentas recolhidas',
+];
 
 export default function DriverTripPanel({ employeeId, employeeName }: DriverTripPanelProps) {
   const { toast } = useToast();
@@ -27,23 +42,37 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
+  // Checklist
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [showChecklist, setShowChecklist] = useState(false);
+
+  // SOS
+  const [showSOS, setShowSOS] = useState(false);
+  const [sosType, setSosType] = useState('Peça danificada');
+  const [sosDesc, setSosDesc] = useState('');
+  const [sosSending, setSosSending] = useState(false);
+
+  // Photo Gallery
+  const [tripPhotos, setTripPhotos] = useState<{ id: string; image_url: string; description: string | null }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchEmployeeAndTrips();
     return () => stopTracking();
   }, [employeeId, employeeName]);
 
-  // Resume tracking if there's an active trip
   useEffect(() => {
     if (activeTrip && activeTrip.status === 'active') {
       startTracking(activeTrip.id);
+      fetchChecklist(activeTrip.id);
+      fetchPhotos(activeTrip.id);
     }
   }, [activeTrip?.id]);
 
   const fetchEmployeeAndTrips = async () => {
     setLoading(true);
     let resolvedId = employeeId;
-
-    // If no ID provided, resolve from name
     if (!resolvedId) {
       const { data: empData } = await supabase
         .from('employees')
@@ -54,7 +83,6 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       if (empData) resolvedId = empData.id;
       else { setLoading(false); return; }
     }
-
     await fetchTrips(resolvedId);
   };
 
@@ -90,9 +118,48 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
     setLoading(false);
   };
 
+  const fetchChecklist = async (tripId: string) => {
+    const { data } = await supabase
+      .from('trip_checklists')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('sort_order');
+    if (data && data.length > 0) {
+      setChecklist(data);
+    } else {
+      // Create default checklist for this trip
+      const items = DEFAULT_CHECKLIST.map((label, i) => ({
+        trip_id: tripId,
+        label,
+        checked: false,
+        sort_order: i,
+      }));
+      const { data: created } = await supabase.from('trip_checklists').insert(items).select();
+      if (created) setChecklist(created);
+    }
+  };
+
+  const fetchPhotos = async (tripId: string) => {
+    const { data } = await supabase
+      .from('trip_photos')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at');
+    if (data) setTripPhotos(data);
+  };
+
+  const toggleCheckItem = async (item: ChecklistItem) => {
+    const { error } = await supabase
+      .from('trip_checklists')
+      .update({ checked: !item.checked })
+      .eq('id', item.id);
+    if (!error) {
+      setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, checked: !c.checked } : c));
+    }
+  };
+
   const sendLocation = useCallback(async (tripId: string) => {
     try {
-      // Try Capacitor Geolocation first (works in native apps), falls back to browser
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
       const { error } = await supabase.from('trip_locations').insert({
         trip_id: tripId,
@@ -109,30 +176,17 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
 
   const startTracking = useCallback((tripId: string) => {
     stopTracking();
-    // Send immediately
     sendLocation(tripId);
-    // Then every 30 seconds
     intervalRef.current = setInterval(() => sendLocation(tripId), 30000);
   }, [sendLocation]);
 
   const stopTracking = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (watchIdRef.current !== null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
   };
 
   const startTrip = async (description?: string) => {
-    // Request GPS permission
-    try {
-      await Geolocation.requestPermissions();
-    } catch (e) {
-      // Browser fallback - permissions handled by getCurrentPosition
-    }
+    try { await Geolocation.requestPermissions(); } catch (e) {}
 
     const { data, error } = await supabase
       .from('trips')
@@ -153,8 +207,16 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
 
   const endTrip = async () => {
     if (!activeTrip) return;
+
+    // Check if checklist is complete
+    const unchecked = checklist.filter(c => !c.checked);
+    if (unchecked.length > 0) {
+      setShowChecklist(true);
+      toast({ title: '⚠️ Complete o checklist', description: `${unchecked.length} item(ns) pendente(s)`, variant: 'destructive' });
+      return;
+    }
+
     stopTracking();
-    // Send final location
     await sendLocation(activeTrip.id);
 
     const { error } = await supabase
@@ -170,7 +232,54 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
     toast({ title: '✅ Viagem finalizada!' });
     setActiveTrip(null);
     setLocationCount(0);
+    setChecklist([]);
+    setTripPhotos([]);
     fetchEmployeeAndTrips();
+  };
+
+  const sendSOS = async () => {
+    if (!activeTrip || !sosDesc.trim()) return;
+    setSosSending(true);
+    const { error } = await supabase.from('trip_incidents').insert({
+      trip_id: activeTrip.id,
+      employee_id: resolvedEmployeeId || employeeId,
+      type: sosType,
+      description: sosDesc.trim(),
+    });
+    setSosSending(false);
+    if (error) {
+      toast({ title: '❌ Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: '🆘 Imprevisto reportado!', description: 'O administrador será notificado.' });
+      setSosDesc('');
+      setShowSOS(false);
+    }
+  };
+
+  const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeTrip || !e.target.files?.length) return;
+    setUploading(true);
+    const file = e.target.files[0];
+    const ext = file.name.split('.').pop();
+    const path = `${activeTrip.id}/${Date.now()}.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage.from('trip-photos').upload(path, file);
+    if (uploadErr) {
+      toast({ title: '❌ Erro no upload', description: uploadErr.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('trip-photos').getPublicUrl(path);
+    await supabase.from('trip_photos').insert({
+      trip_id: activeTrip.id,
+      image_url: urlData.publicUrl,
+    });
+
+    await fetchPhotos(activeTrip.id);
+    setUploading(false);
+    toast({ title: '📸 Foto salva!' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const formatTime = (iso: string) =>
@@ -224,6 +333,115 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
               <MapPin className="w-4 h-4 inline mr-1" />
               Início: {formatTime(activeTrip.started_at)}
             </p>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setShowChecklist(!showChecklist)}
+                className="flex flex-col items-center gap-1 p-3 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors"
+              >
+                <CheckSquare className="w-5 h-5 text-amber-600" />
+                <span className="text-xs font-bold text-amber-700">Checklist</span>
+                <span className="text-[10px] text-amber-500">{checklist.filter(c => c.checked).length}/{checklist.length}</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-1 p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors"
+              >
+                <Camera className="w-5 h-5 text-blue-600" />
+                <span className="text-xs font-bold text-blue-700">{uploading ? 'Enviando...' : 'Foto'}</span>
+                <span className="text-[10px] text-blue-500">{tripPhotos.length} foto(s)</span>
+              </button>
+              <button
+                onClick={() => setShowSOS(!showSOS)}
+                className="flex flex-col items-center gap-1 p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+              >
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="text-xs font-bold text-red-700">SOS</span>
+                <span className="text-[10px] text-red-500">Imprevisto</span>
+              </button>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={uploadPhoto}
+            />
+
+            {/* Checklist Panel */}
+            {showChecklist && (
+              <div className="bg-amber-50 rounded-xl p-4 space-y-2 border border-amber-200">
+                <p className="font-bold text-amber-800 text-sm mb-2">📋 Checklist de Montagem</p>
+                {checklist.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleCheckItem(item)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left text-sm transition-all ${
+                      item.checked ? 'bg-green-100 text-green-800' : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className={`w-5 h-5 rounded border-2 flex items-center justify-center text-xs ${
+                      item.checked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'
+                    }`}>
+                      {item.checked && '✓'}
+                    </span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* SOS Panel */}
+            {showSOS && (
+              <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
+                <p className="font-bold text-red-800 text-sm">🆘 Reportar Imprevisto</p>
+                <select
+                  value={sosType}
+                  onChange={e => setSosType(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-red-200 text-sm bg-white"
+                >
+                  <option>Peça danificada</option>
+                  <option>Falta de material</option>
+                  <option>Medida incorreta</option>
+                  <option>Problema no local</option>
+                  <option>Outro</option>
+                </select>
+                <textarea
+                  value={sosDesc}
+                  onChange={e => setSosDesc(e.target.value)}
+                  placeholder="Descreva o problema..."
+                  className="w-full p-2 rounded-lg border border-red-200 text-sm bg-white resize-none h-20"
+                />
+                <button
+                  onClick={sendSOS}
+                  disabled={sosSending || !sosDesc.trim()}
+                  className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-sm hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  {sosSending ? 'Enviando...' : 'Enviar Alerta'}
+                </button>
+              </div>
+            )}
+
+            {/* Trip Photos */}
+            {tripPhotos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-bold text-gray-700 flex items-center gap-1">
+                  <Image className="w-4 h-4" /> Fotos da Montagem
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {tripPhotos.map(photo => (
+                    <div key={photo.id} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                      <img src={photo.image_url} alt="Foto" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={endTrip}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-lg"
