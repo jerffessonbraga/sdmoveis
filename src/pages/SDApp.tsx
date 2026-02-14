@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ViewMode, Contract } from '@/types';
 import { generateRealisticRender } from '@/services/geminiService';
+import AfterSalesPanel from '@/components/client/AfterSalesPanel';
 import TimeTrackingPanel from '@/components/timetracking/TimeTrackingPanel';
 import EmployeePortal from '@/components/timetracking/EmployeePortal';
 import DriverTripPanel from '@/components/fleet/DriverTripPanel';
@@ -58,6 +59,9 @@ import {
   Layers,
   RefreshCw,
   ExternalLink,
+  BookOpen,
+  ThumbsUp,
+  Timer,
 } from 'lucide-react';
 
 const INITIAL_CONTRACTS: Contract[] = [
@@ -98,6 +102,7 @@ const App: React.FC = () => {
   const [showClientFinanceiro, setShowClientFinanceiro] = useState(false);
   const [galleryFullscreen, setGalleryFullscreen] = useState<{title: string; url: string} | null>(null);
   const [galleryItems, setGalleryItems] = useState<{title: string; desc: string; url: string}[]>([]);
+  const [projectApproved, setProjectApproved] = useState(false);
 
   // Fetch gallery images from database when client logs in
   useEffect(() => {
@@ -288,6 +293,7 @@ const App: React.FC = () => {
                 <NavIcon icon="home" label="Painel" active={view === ViewMode.CLIENT_PORTAL} onClick={() => setView(ViewMode.CLIENT_PORTAL)} />
                 <NavIcon icon="image" label="Galeria" active={view === ViewMode.PORTFOLIO} onClick={() => setView(ViewMode.PORTFOLIO)} />
                 <NavIcon icon="message-square" label="Chat" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} />
+                <NavIcon icon="book-open" label="Pós-Venda" active={view === ViewMode.AFTER_SALES} onClick={() => setView(ViewMode.AFTER_SALES)} />
               </>
             )}
           </nav>
@@ -657,6 +663,12 @@ const App: React.FC = () => {
                   <Calendar className="w-3 h-3" /> Previsão de Instalação
                 </p>
                 <p className="text-amber-700 font-bold text-lg">15 Março, 2024</p>
+                <div className="flex items-center gap-2 mt-2 bg-amber-100 rounded-xl px-3 py-1.5">
+                  <Timer className="w-4 h-4 text-amber-600" />
+                  <p className="text-amber-700 font-black text-sm">
+                    Faltam {Math.max(0, Math.ceil((new Date('2024-03-15').getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias para seu sonho! ✨
+                  </p>
+                </div>
               </div>
             </header>
 
@@ -724,6 +736,10 @@ const App: React.FC = () => {
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Financeiro</p>
                 <p className="text-xl font-black text-gray-900">3/5 Parcelas</p>
                 <p className="text-sm text-green-600 font-bold mt-1">Em dia ✓</p>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-400">Próxima parcela</p>
+                  <p className="text-sm font-bold text-amber-600">01/05 — R$ 9.000</p>
+                </div>
               </button>
               <div className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow">
                 <span className="text-4xl mb-4 block">💬</span>
@@ -859,7 +875,39 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Approve Project Button */}
+            {!projectApproved ? (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-3xl p-8 shadow-lg text-center">
+                <ThumbsUp className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-black text-gray-900 mb-2">Aprovar Projeto</h3>
+                <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">
+                  Revise todos os renders e, se estiver satisfeito, aprove o projeto para iniciarmos a produção.
+                </p>
+                <button
+                  onClick={() => {
+                    setProjectApproved(true);
+                    toast({ title: "✅ Projeto Aprovado!", description: "Obrigado! A produção será iniciada em breve." });
+                  }}
+                  className="bg-green-600 text-white px-10 py-4 rounded-2xl font-black hover:bg-green-500 transition-colors shadow-lg inline-flex items-center gap-2"
+                >
+                  <ThumbsUp className="w-5 h-5" />
+                  Aprovar Projeto
+                </button>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-3xl p-6 text-center">
+                <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                <p className="font-black text-green-700">Projeto Aprovado ✓</p>
+                <p className="text-sm text-green-600 mt-1">Sua produção está em andamento!</p>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* AFTER SALES */}
+        {view === ViewMode.AFTER_SALES && authState === 'CLIENT' && (
+          <AfterSalesPanel />
         )}
       </main>
 
