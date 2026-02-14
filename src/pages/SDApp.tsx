@@ -103,60 +103,62 @@ const App: React.FC = () => {
   const [galleryFullscreen, setGalleryFullscreen] = useState<{title: string; url: string} | null>(null);
   const [galleryItems, setGalleryItems] = useState<{title: string; desc: string; url: string}[]>([]);
   const [projectApproved, setProjectApproved] = useState(false);
+  const [clientProject, setClientProject] = useState<any>(null);
+  const [clientInstallments, setClientInstallments] = useState<any[]>([]);
+  const [clientProductionSteps, setClientProductionSteps] = useState<any[]>([]);
+  const [clientTimeline, setClientTimeline] = useState<any[]>([]);
+  const [clientName, setClientName] = useState('');
 
-  // Fetch gallery images from database when client logs in
+  // Fetch all client data from database when client logs in
   useEffect(() => {
     if (authState === 'CLIENT') {
-      const fetchGallery = async () => {
-        // Try to find client by access code first
+      const fetchClientData = async () => {
         const { data: clients } = await supabase
           .from('clients')
-          .select('id')
+          .select('id, name')
           .eq('access_code', password.trim() || 'SD2024')
           .limit(1);
         
-        const clientId = clients && clients.length > 0 ? clients[0].id : null;
+        const client = clients && clients.length > 0 ? clients[0] : null;
+        if (client) setClientName(client.name);
+        const clientId = client?.id;
         
         if (clientId) {
           const { data: projects } = await supabase
             .from('client_projects')
-            .select('id')
+            .select('*')
             .eq('client_id', clientId)
             .limit(1);
           
-          if (projects && projects.length > 0) {
-            const { data: gallery } = await supabase
-              .from('project_gallery')
-              .select('*')
-              .eq('project_id', projects[0].id)
-              .order('created_at');
-            
-            if (gallery && gallery.length > 0) {
-              setGalleryItems(gallery.map(g => ({
-                title: g.title,
-                desc: g.description || '',
-                url: g.image_url
-              })));
+          const project = projects && projects.length > 0 ? projects[0] : null;
+          if (project) {
+            setClientProject(project);
+
+            // Fetch installments, production steps, timeline, gallery in parallel
+            const [installRes, stepsRes, timelineRes, galleryRes] = await Promise.all([
+              supabase.from('project_installments').select('*').eq('project_id', project.id).order('installment_number'),
+              supabase.from('project_production_steps').select('*').eq('project_id', project.id).order('sort_order'),
+              supabase.from('project_timeline').select('*').eq('project_id', project.id).order('sort_order'),
+              supabase.from('project_gallery').select('*').eq('project_id', project.id).order('created_at'),
+            ]);
+
+            if (installRes.data) setClientInstallments(installRes.data);
+            if (stepsRes.data) setClientProductionSteps(stepsRes.data);
+            if (timelineRes.data) setClientTimeline(timelineRes.data);
+            if (galleryRes.data && galleryRes.data.length > 0) {
+              setGalleryItems(galleryRes.data.map(g => ({ title: g.title, desc: g.description || '', url: g.image_url })));
               return;
             }
           }
         }
         
-        // Fallback: fetch all gallery images
-        const { data: allGallery } = await supabase
-          .from('project_gallery')
-          .select('*')
-          .order('created_at');
-        
+        // Fallback gallery
+        const { data: allGallery } = await supabase.from('project_gallery').select('*').order('created_at');
         if (allGallery && allGallery.length > 0) {
-          setGalleryItems(allGallery.map(g => ({
-            title: g.title,
-            desc: g.description || '',
-            url: g.image_url
-          })));
+          setGalleryItems(allGallery.map(g => ({ title: g.title, desc: g.description || '', url: g.image_url })));
         }
       };
-      fetchGallery();
+      fetchClientData();
     }
   }, [authState, password]);
 
@@ -655,21 +657,28 @@ const App: React.FC = () => {
                 </h1>
                 <p className="text-gray-500 mt-1 flex items-center gap-2">
                   <Heart className="w-4 h-4 text-red-500" />
-                  Acompanhando cada detalhe do seu sonho
+                  {clientName ? `Olá, ${clientName}! Acompanhando cada detalhe do seu sonho` : 'Acompanhando cada detalhe do seu sonho'}
                 </p>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-3 shadow-sm">
-                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> Previsão de Instalação
-                </p>
-                <p className="text-amber-700 font-bold text-lg">15 Março, 2024</p>
-                <div className="flex items-center gap-2 mt-2 bg-amber-100 rounded-xl px-3 py-1.5">
-                  <Timer className="w-4 h-4 text-amber-600" />
-                  <p className="text-amber-700 font-black text-sm">
-                    Faltam {Math.max(0, Math.ceil((new Date('2024-03-15').getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} dias para seu sonho! ✨
+              {clientProject?.estimated_delivery && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-3 shadow-sm">
+                  <p className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> Previsão de Instalação
                   </p>
+                  <p className="text-amber-700 font-bold text-lg">
+                    {new Date(clientProject.estimated_delivery + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 bg-amber-100 rounded-xl px-3 py-1.5">
+                    <Timer className="w-4 h-4 text-amber-600" />
+                    <p className="text-amber-700 font-black text-sm">
+                      {(() => {
+                        const days = Math.max(0, Math.ceil((new Date(clientProject.estimated_delivery + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                        return days > 0 ? `Faltam ${days} dias para seu sonho! ✨` : 'O grande dia chegou! 🎉';
+                      })()}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </header>
 
             {/* Status Cards */}
@@ -678,36 +687,27 @@ const App: React.FC = () => {
                 <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl mb-4">🏭</div>
                 <p className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
                   <Package className="w-5 h-5 text-blue-600" />
-                  Status: Produção
+                  Status: {clientProject?.status || 'Produção'}
                 </p>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 flex items-center gap-1"><CheckCircle className="w-4 h-4 text-green-500" /> Corte e Borda</span>
-                      <span className="font-bold text-green-600">Concluído ✓</span>
+                  {clientProductionSteps.length > 0 ? clientProductionSteps.map((step) => (
+                    <div key={step.id}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          {step.progress === 100 ? <CheckCircle className="w-4 h-4 text-green-500" /> : step.progress > 0 ? <Wrench className="w-4 h-4 text-blue-500" /> : <Truck className="w-4 h-4 text-gray-400" />}
+                          {step.label}
+                        </span>
+                        <span className={`font-bold ${step.progress === 100 ? 'text-green-600' : step.progress > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                          {step.progress === 100 ? 'Concluído ✓' : step.progress > 0 ? `${step.progress}% Pronto` : (step.status || 'Aguardando')}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div className={`h-3 rounded-full ${step.progress === 100 ? 'bg-green-500' : step.progress > 0 ? 'bg-blue-500' : 'bg-gray-300'}`} style={{ width: `${step.progress}%` }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div className="bg-green-500 h-3 rounded-full w-full" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 flex items-center gap-1"><Wrench className="w-4 h-4 text-blue-500" /> Montagem em Fábrica</span>
-                      <span className="font-bold text-blue-600">85% Pronto</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div className="bg-blue-500 h-3 rounded-full w-[85%]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 flex items-center gap-1"><Truck className="w-4 h-4 text-gray-400" /> Expedição</span>
-                      <span className="font-bold text-gray-400">Aguardando</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div className="bg-gray-300 h-3 rounded-full w-0" />
-                    </div>
-                  </div>
+                  )) : (
+                    <p className="text-gray-400 text-sm">Etapas de produção serão exibidas em breve.</p>
+                  )}
                 </div>
               </div>
 
@@ -734,12 +734,27 @@ const App: React.FC = () => {
               <button onClick={() => setShowClientFinanceiro(true)} className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow cursor-pointer w-full">
                 <span className="text-4xl mb-4 block">💳</span>
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Financeiro</p>
-                <p className="text-xl font-black text-gray-900">3/5 Parcelas</p>
-                <p className="text-sm text-green-600 font-bold mt-1">Em dia ✓</p>
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">Próxima parcela</p>
-                  <p className="text-sm font-bold text-amber-600">01/05 — R$ 9.000</p>
-                </div>
+                {(() => {
+                  const paid = clientInstallments.filter(i => i.status === 'Pago').length;
+                  const total = clientInstallments.length;
+                  const next = clientInstallments.find(i => i.status === 'Pendente');
+                  return (
+                    <>
+                      <p className="text-xl font-black text-gray-900">{total > 0 ? `${paid}/${total} Parcelas` : clientProject?.payment_status || '—'}</p>
+                      <p className={`text-sm font-bold mt-1 ${paid === total && total > 0 ? 'text-green-600' : 'text-green-600'}`}>
+                        {paid === total && total > 0 ? 'Quitado ✓' : 'Em dia ✓'}
+                      </p>
+                      {next && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-xs text-gray-400">Próxima parcela</p>
+                          <p className="text-sm font-bold text-amber-600">
+                            {new Date(next.due_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} — R$ {Number(next.amount).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </button>
               <div className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow">
                 <span className="text-4xl mb-4 block">💬</span>
@@ -752,7 +767,7 @@ const App: React.FC = () => {
               <button onClick={() => setShowClientContract(true)} className="bg-white rounded-3xl p-6 shadow-xl text-center hover:shadow-2xl transition-shadow cursor-pointer w-full">
                 <span className="text-4xl mb-4 block">📝</span>
                 <p className="text-xs text-gray-400 uppercase font-bold mb-2">Contrato</p>
-                <p className="text-xl font-black text-gray-900">Assinado</p>
+                <p className="text-xl font-black text-gray-900">{clientProject?.status || 'Assinado'}</p>
                 <p className="text-sm text-green-600 font-bold mt-1 flex items-center justify-center gap-1">
                   <Shield className="w-4 h-4" /> Ver Detalhes
                 </p>
@@ -766,26 +781,35 @@ const App: React.FC = () => {
                 Linha do Tempo do Projeto
               </h3>
               <div className="flex items-center justify-between relative">
-                <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200 z-0">
-                  <div className="h-1 bg-green-500 w-[60%]" />
-                </div>
-                {[
-                  { label: 'Assinatura', date: '01/02', done: true, icon: '✍️' },
-                  { label: 'Projeto 3D', date: '05/02', done: true, icon: '🖥️' },
-                  { label: 'Produção', date: '10/02', done: true, icon: '🏭' },
-                  { label: 'Expedição', date: '10/03', done: false, icon: '📦' },
-                  { label: 'Instalação', date: '15/03', done: false, icon: '🔧' },
-                ].map((step, i) => (
-                  <div key={i} className="flex flex-col items-center relative z-10">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-2 ${
-                      step.done ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
-                    }`}>
-                      {step.done ? '✓' : step.icon}
-                    </div>
-                    <p className={`text-xs font-bold ${step.done ? 'text-green-600' : 'text-gray-500'}`}>{step.label}</p>
-                    <p className="text-xs text-gray-400">{step.date}</p>
-                  </div>
-                ))}
+                {(() => {
+                  const steps = clientTimeline.length > 0 ? clientTimeline : [
+                    { label: 'Assinatura', step_date: '', done: true, icon: '✍️' },
+                    { label: 'Projeto 3D', step_date: '', done: true, icon: '🖥️' },
+                    { label: 'Produção', step_date: '', done: true, icon: '🏭' },
+                    { label: 'Expedição', step_date: '', done: false, icon: '📦' },
+                    { label: 'Instalação', step_date: '', done: false, icon: '🔧' },
+                  ];
+                  const doneCount = steps.filter(s => s.done).length;
+                  const progressPct = steps.length > 0 ? Math.round((doneCount / steps.length) * 100) : 0;
+                  return (
+                    <>
+                      <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200 z-0">
+                        <div className="h-1 bg-green-500" style={{ width: `${progressPct}%` }} />
+                      </div>
+                      {steps.map((step: any, i: number) => (
+                        <div key={step.id || i} className="flex flex-col items-center relative z-10">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-2 ${
+                            step.done ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                          }`}>
+                            {step.done ? '✓' : (step.icon || '📋')}
+                          </div>
+                          <p className={`text-xs font-bold ${step.done ? 'text-green-600' : 'text-gray-500'}`}>{step.label}</p>
+                          <p className="text-xs text-gray-400">{step.step_date || ''}</p>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
