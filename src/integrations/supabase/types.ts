@@ -144,6 +144,38 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_signatures: {
+        Row: {
+          client_name: string
+          id: string
+          signature_url: string
+          signed_at: string
+          trip_id: string
+        }
+        Insert: {
+          client_name: string
+          id?: string
+          signature_url: string
+          signed_at?: string
+          trip_id: string
+        }
+        Update: {
+          client_name?: string
+          id?: string
+          signature_url?: string
+          signed_at?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_signatures_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_adjustments: {
         Row: {
           amount: number
@@ -217,6 +249,101 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      maintenance_requests: {
+        Row: {
+          admin_note: string | null
+          client_id: string
+          created_at: string
+          description: string
+          id: string
+          preferred_date: string | null
+          project_id: string
+          resolved_at: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          admin_note?: string | null
+          client_id: string
+          created_at?: string
+          description: string
+          id?: string
+          preferred_date?: string | null
+          project_id: string
+          resolved_at?: string | null
+          status?: string
+          type?: string
+        }
+        Update: {
+          admin_note?: string | null
+          client_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          preferred_date?: string | null
+          project_id?: string
+          resolved_at?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_costs: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          id: string
+          project_id: string
+          quantity: number
+          unit: string | null
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description: string
+          id?: string
+          project_id: string
+          quantity?: number
+          unit?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          project_id?: string
+          quantity?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_gallery: {
         Row: {
@@ -376,6 +503,79 @@ export type Database = {
           },
         ]
       }
+      quality_check_items: {
+        Row: {
+          checked: boolean
+          checklist_id: string
+          id: string
+          label: string
+          note: string | null
+          sort_order: number
+        }
+        Insert: {
+          checked?: boolean
+          checklist_id: string
+          id?: string
+          label: string
+          note?: string | null
+          sort_order?: number
+        }
+        Update: {
+          checked?: boolean
+          checklist_id?: string
+          id?: string
+          label?: string
+          note?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_check_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_checklists: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          inspector_name: string | null
+          notes: string | null
+          project_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          inspector_name?: string | null
+          notes?: string | null
+          project_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          inspector_name?: string | null
+          notes?: string | null
+          project_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           clock_in: string
@@ -407,6 +607,92 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_inventory: {
+        Row: {
+          assigned_at: string
+          condition: string
+          employee_id: string
+          id: string
+          notes: string | null
+          serial_number: string | null
+          tool_name: string
+        }
+        Insert: {
+          assigned_at?: string
+          condition?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          serial_number?: string | null
+          tool_name: string
+        }
+        Update: {
+          assigned_at?: string
+          condition?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          serial_number?: string | null
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_inventory_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_reports: {
+        Row: {
+          created_at: string
+          description: string
+          employee_id: string
+          id: string
+          issue_type: string
+          resolved_at: string | null
+          status: string
+          tool_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          employee_id: string
+          id?: string
+          issue_type?: string
+          resolved_at?: string | null
+          status?: string
+          tool_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          employee_id?: string
+          id?: string
+          issue_type?: string
+          resolved_at?: string | null
+          status?: string
+          tool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_reports_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_reports_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tool_inventory"
             referencedColumns: ["id"]
           },
         ]

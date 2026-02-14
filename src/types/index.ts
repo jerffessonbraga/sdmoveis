@@ -8,6 +8,9 @@ export enum ViewMode {
   TIME_TRACKING = 'TIME_TRACKING',
   FLEET = 'FLEET',
   AFTER_SALES = 'AFTER_SALES',
+  QUALITY_CHECK = 'QUALITY_CHECK',
+  PROJECT_COSTS = 'PROJECT_COSTS',
+  WARRANTY = 'WARRANTY',
 }
 
 export enum ToolMode {

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image } from 'lucide-react';
+import SignaturePad from '@/components/employee/SignaturePad';
+import ToolInventory from '@/components/employee/ToolInventory';
 import { Geolocation } from '@capacitor/geolocation';
 
 interface Trip {
@@ -442,6 +444,9 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
               </div>
             )}
 
+            {/* Signature */}
+            <SignaturePad tripId={activeTrip.id} />
+
             <button
               onClick={endTrip}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-lg"
@@ -476,8 +481,13 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
                   <Clock className="w-3 h-3 inline mr-1" />
                   {calcDuration(trip.started_at, trip.ended_at)}
                 </span>
-              </div>
-            </div>
+      </div>
+
+      {/* Tool Inventory */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <ToolInventory employeeId={resolvedEmployeeId || employeeId} />
+      </div>
+    </div>
           ))}
           {recentTrips.length === 0 && (
             <p className="text-center text-gray-400 py-6">Nenhuma viagem registrada</p>
