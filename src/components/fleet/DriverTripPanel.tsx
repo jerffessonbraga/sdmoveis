@@ -481,18 +481,18 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
                   <Clock className="w-3 h-3 inline mr-1" />
                   {calcDuration(trip.started_at, trip.ended_at)}
                 </span>
-      </div>
-
-      {/* Tool Inventory */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg">
-        <ToolInventory employeeId={resolvedEmployeeId || employeeId} />
-      </div>
-    </div>
+              </div>
+            </div>
           ))}
           {recentTrips.length === 0 && (
             <p className="text-center text-gray-400 py-6">Nenhuma viagem registrada</p>
           )}
         </div>
+      </div>
+
+      {/* Tool Inventory */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <ToolInventory employeeId={resolvedEmployeeId || employeeId} />
       </div>
     </div>
   );
