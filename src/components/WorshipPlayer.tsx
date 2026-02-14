@@ -27,7 +27,7 @@ export const WorshipPlayer: React.FC<WorshipPlayerProps> = ({
 
   return (
     <div 
-      className="fixed bottom-6 right-6 z-50"
+      className="fixed bottom-6 right-6 z-10 pointer-events-auto"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
