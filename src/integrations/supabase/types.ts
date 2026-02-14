@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      advance_requests: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_projects: {
         Row: {
           client_id: string
@@ -370,6 +411,95 @@ export type Database = {
           },
         ]
       }
+      trip_checklists: {
+        Row: {
+          checked: boolean
+          created_at: string
+          id: string
+          label: string
+          sort_order: number
+          trip_id: string
+        }
+        Insert: {
+          checked?: boolean
+          created_at?: string
+          id?: string
+          label: string
+          sort_order?: number
+          trip_id: string
+        }
+        Update: {
+          checked?: boolean
+          created_at?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_checklists_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_incidents: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          description: string
+          employee_id: string
+          id: string
+          photo_url: string | null
+          resolved_at: string | null
+          status: string
+          trip_id: string
+          type: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          description: string
+          employee_id: string
+          id?: string
+          photo_url?: string | null
+          resolved_at?: string | null
+          status?: string
+          trip_id: string
+          type?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          description?: string
+          employee_id?: string
+          id?: string
+          photo_url?: string | null
+          resolved_at?: string | null
+          status?: string
+          trip_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_incidents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_incidents_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_locations: {
         Row: {
           accuracy: number | null
@@ -401,6 +531,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "trip_locations_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_photos: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url: string
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_photos_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, Play, Square, DollarSign, Calendar, User } from 'lucide-react';
+import { Clock, Play, Square, DollarSign, Calendar, User, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -30,6 +30,13 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
   const [period, setPeriod] = useState<Period>('month');
   const [loading, setLoading] = useState(true);
 
+  // Vale/Adiantamento
+  const [showVale, setShowVale] = useState(false);
+  const [valeAmount, setValeAmount] = useState('');
+  const [valeReason, setValeReason] = useState('');
+  const [valeSending, setValeSending] = useState(false);
+  const [valeRequests, setValeRequests] = useState<any[]>([]);
+
   useEffect(() => {
     fetchEmployee();
   }, [employeeName]);
@@ -46,13 +53,12 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
 
     if (empData) {
       setEmployee(empData);
-      const { data: entriesData } = await supabase
-        .from('time_entries')
-        .select('*')
-        .eq('employee_id', empData.id)
-        .order('clock_in', { ascending: false })
-        .limit(200);
-      if (entriesData) setEntries(entriesData);
+      const [entriesRes, valeRes] = await Promise.all([
+        supabase.from('time_entries').select('*').eq('employee_id', empData.id).order('clock_in', { ascending: false }).limit(200),
+        supabase.from('advance_requests').select('*').eq('employee_id', empData.id).order('created_at', { ascending: false }).limit(20),
+      ]);
+      if (entriesRes.data) setEntries(entriesRes.data);
+      if (valeRes.data) setValeRequests(valeRes.data);
     }
     setLoading(false);
   };
@@ -76,6 +82,26 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
       toast({ title: '❌ Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: '✅ Saída registrada!' });
+      fetchEmployee();
+    }
+  };
+
+  const submitVale = async () => {
+    if (!employee || !valeAmount) return;
+    setValeSending(true);
+    const { error } = await supabase.from('advance_requests').insert({
+      employee_id: employee.id,
+      amount: parseFloat(valeAmount),
+      reason: valeReason.trim() || null,
+    });
+    setValeSending(false);
+    if (error) {
+      toast({ title: '❌ Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: '✅ Solicitação enviada!', description: 'Aguarde a aprovação do administrador.' });
+      setValeAmount('');
+      setValeReason('');
+      setShowVale(false);
       fetchEmployee();
     }
   };
@@ -226,6 +252,78 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
           ))}
           {entries.length === 0 && (
             <p className="text-center text-gray-400 py-6">Nenhum registro ainda</p>
+          )}
+        </div>
+      </div>
+
+      {/* Vale/Adiantamento */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-amber-500" /> Solicitar Vale/Adiantamento
+          </h3>
+          <button
+            onClick={() => setShowVale(!showVale)}
+            className="px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors"
+          >
+            {showVale ? 'Cancelar' : 'Nova Solicitação'}
+          </button>
+        </div>
+
+        {showVale && (
+          <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-200 mb-4">
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase">Valor (R$)</label>
+              <input
+                type="number"
+                value={valeAmount}
+                onChange={e => setValeAmount(e.target.value)}
+                placeholder="Ex: 200"
+                className="w-full p-3 rounded-lg border border-amber-200 bg-white text-sm mt-1"
+                min="1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase">Motivo (opcional)</label>
+              <input
+                type="text"
+                value={valeReason}
+                onChange={e => setValeReason(e.target.value)}
+                placeholder="Ex: Combustível para entrega"
+                className="w-full p-3 rounded-lg border border-amber-200 bg-white text-sm mt-1"
+              />
+            </div>
+            <button
+              onClick={submitVale}
+              disabled={valeSending || !valeAmount}
+              className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {valeSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar Solicitação
+            </button>
+          </div>
+        )}
+
+        <div className="space-y-2 max-h-48 overflow-auto">
+          {valeRequests.map(req => (
+            <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm">
+              <div>
+                <span className="font-bold text-gray-900">R$ {Number(req.amount).toFixed(2)}</span>
+                {req.reason && <span className="text-gray-500 ml-2">— {req.reason}</span>}
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                req.status === 'Aprovado' ? 'bg-green-100 text-green-700' :
+                req.status === 'Recusado' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              }`}>
+                {req.status === 'Aprovado' && <CheckCircle className="w-3 h-3 inline mr-1" />}
+                {req.status === 'Recusado' && <XCircle className="w-3 h-3 inline mr-1" />}
+                {req.status}
+              </span>
+            </div>
+          ))}
+          {valeRequests.length === 0 && (
+            <p className="text-center text-gray-400 py-4 text-sm">Nenhuma solicitação ainda</p>
           )}
         </div>
       </div>
