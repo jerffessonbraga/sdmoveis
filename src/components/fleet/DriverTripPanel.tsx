@@ -24,6 +24,12 @@ interface ChecklistItem {
   checklist_type: string;
 }
 
+interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+}
+
 interface DriverTripPanelProps {
   employeeId: string;
   employeeName: string;
@@ -73,10 +79,15 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   // Fuel
   const [showFuel, setShowFuel] = useState(false);
 
+  // Vehicles
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+
   const isDeliveryMode = activeTrip?.montagem_status === 'concluida';
 
   useEffect(() => {
     fetchEmployeeAndTrips();
+    fetchVehicles();
     return () => stopTracking();
   }, [employeeId, employeeName]);
 
@@ -87,6 +98,11 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       fetchPhotos(activeTrip.id);
     }
   }, [activeTrip?.id]);
+
+  const fetchVehicles = async () => {
+    const { data } = await supabase.from('vehicles').select('id, plate, model').eq('active', true);
+    if (data) setVehicles(data);
+  };
 
   const fetchEmployeeAndTrips = async () => {
     setLoading(true);
@@ -215,9 +231,14 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   const startTrip = async (description?: string) => {
     try { await Geolocation.requestPermissions(); } catch (e) {}
 
+    if (!selectedVehicleId) {
+      toast({ title: '⚠️ Selecione um veículo', variant: 'destructive' });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('trips')
-      .insert({ employee_id: resolvedEmployeeId || employeeId, description: description || null })
+      .insert({ employee_id: resolvedEmployeeId || employeeId, description: description || null, vehicle_id: selectedVehicleId })
       .select()
       .single();
 
@@ -573,12 +594,28 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => startTrip()}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-lg"
-          >
-            <Play className="w-5 h-5" /> Iniciar Viagem
-          </button>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-bold text-gray-700 mb-1 block">🚗 Selecione o Veículo</label>
+              <select
+                value={selectedVehicleId}
+                onChange={e => setSelectedVehicleId(e.target.value)}
+                className="w-full p-3 rounded-xl border border-gray-200 text-sm font-bold bg-white"
+              >
+                <option value="">Escolha um veículo...</option>
+                {vehicles.map(v => (
+                  <option key={v.id} value={v.id}>{v.plate} — {v.model}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => startTrip()}
+              disabled={!selectedVehicleId}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-lg disabled:opacity-50"
+            >
+              <Play className="w-5 h-5" /> Iniciar Viagem
+            </button>
+          </div>
         )}
       </div>
 

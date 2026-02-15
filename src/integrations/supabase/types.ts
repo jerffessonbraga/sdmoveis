@@ -303,6 +303,7 @@ export type Database = {
           receipt_url: string | null
           total_paid: number
           trip_id: string | null
+          vehicle_id: string | null
         }
         Insert: {
           created_at?: string
@@ -315,6 +316,7 @@ export type Database = {
           receipt_url?: string | null
           total_paid: number
           trip_id?: string | null
+          vehicle_id?: string | null
         }
         Update: {
           created_at?: string
@@ -327,6 +329,7 @@ export type Database = {
           receipt_url?: string | null
           total_paid?: number
           trip_id?: string | null
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -341,6 +344,13 @@ export type Database = {
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_records_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -965,6 +975,7 @@ export type Database = {
           project_id: string | null
           started_at: string
           status: string
+          vehicle_id: string | null
         }
         Insert: {
           created_at?: string
@@ -976,6 +987,7 @@ export type Database = {
           project_id?: string | null
           started_at?: string
           status?: string
+          vehicle_id?: string | null
         }
         Update: {
           created_at?: string
@@ -987,6 +999,7 @@ export type Database = {
           project_id?: string | null
           started_at?: string
           status?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -1003,7 +1016,41 @@ export type Database = {
             referencedRelation: "client_projects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "trips_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      vehicles: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          model: string
+          plate: string
+          year: number | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          model: string
+          plate: string
+          year?: number | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          model?: string
+          plate?: string
+          year?: number | null
+        }
+        Relationships: []
       }
       whatsapp_conversations: {
         Row: {

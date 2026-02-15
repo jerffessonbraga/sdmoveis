@@ -12,9 +12,16 @@ interface Employee {
   role: string | null;
 }
 
+interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+}
+
 interface Trip {
   id: string;
   employee_id: string;
+  vehicle_id: string | null;
   started_at: string;
   ended_at: string | null;
   status: string;
@@ -38,6 +45,7 @@ export default function FleetAdminPanel() {
   const [completedTrips, setCompletedTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [tripLocations, setTripLocations] = useState<TripLocation[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [tab, setTab] = useState<'live' | 'history' | 'fuel'>('live');
   const [loading, setLoading] = useState(true);
 
@@ -73,14 +81,16 @@ export default function FleetAdminPanel() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [empRes, activeRes, completedRes] = await Promise.all([
+    const [empRes, activeRes, completedRes, vehRes] = await Promise.all([
       supabase.from('employees').select('id, name, role').eq('active', true),
       supabase.from('trips').select('*').eq('status', 'active').order('started_at', { ascending: false }),
       supabase.from('trips').select('*').eq('status', 'completed').order('ended_at', { ascending: false }).limit(50),
+      supabase.from('vehicles').select('id, plate, model').eq('active', true),
     ]);
     if (empRes.data) setEmployees(empRes.data);
     if (activeRes.data) setActiveTrips(activeRes.data);
     if (completedRes.data) setCompletedTrips(completedRes.data);
+    if (vehRes.data) setVehicles(vehRes.data);
     setLoading(false);
   };
 
@@ -107,6 +117,12 @@ export default function FleetAdminPanel() {
 
   const getEmployeeName = (empId: string) =>
     employees.find(e => e.id === empId)?.name || 'Desconhecido';
+
+  const getVehiclePlate = (vehId: string | null) => {
+    if (!vehId) return null;
+    const v = vehicles.find(v => v.id === vehId);
+    return v ? `${v.plate} — ${v.model}` : null;
+  };
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -193,6 +209,7 @@ export default function FleetAdminPanel() {
                     <div>
                       <p className="font-bold text-gray-900">{getEmployeeName(trip.employee_id)}</p>
                       <p className="text-xs text-gray-500">
+                        {getVehiclePlate(trip.vehicle_id) && <span className="text-blue-600 font-bold mr-2">🚗 {getVehiclePlate(trip.vehicle_id)}</span>}
                         Início: {formatTime(trip.started_at)} • Duração: {calcDuration(trip.started_at, null)}
                       </p>
                     </div>
@@ -237,7 +254,10 @@ export default function FleetAdminPanel() {
                   <MapPin className="w-4 h-4 text-gray-400" />
                   <div>
                     <p className="font-bold text-gray-900">{getEmployeeName(trip.employee_id)}</p>
-                    <p className="text-xs text-gray-500">{formatTime(trip.started_at)}</p>
+                    <p className="text-xs text-gray-500">
+                      {getVehiclePlate(trip.vehicle_id) && <span className="text-blue-600 font-bold mr-1">🚗 {getVehiclePlate(trip.vehicle_id)} • </span>}
+                      {formatTime(trip.started_at)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
