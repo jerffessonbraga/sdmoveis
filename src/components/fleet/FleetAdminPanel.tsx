@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Navigation, Route, Clock, Users, Eye } from 'lucide-react';
+import { MapPin, Navigation, Route, Clock, Users, Eye, Fuel } from 'lucide-react';
 
 const FleetMap = lazy(() => import('./FleetMap'));
+const FuelAdminPanel = lazy(() => import('./FuelAdminPanel'));
 
 interface Employee {
   id: string;
@@ -37,7 +38,7 @@ export default function FleetAdminPanel() {
   const [completedTrips, setCompletedTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [tripLocations, setTripLocations] = useState<TripLocation[]>([]);
-  const [tab, setTab] = useState<'live' | 'history'>('live');
+  const [tab, setTab] = useState<'live' | 'history' | 'fuel'>('live');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -155,19 +156,24 @@ export default function FleetAdminPanel() {
         <button className={tabClass('history')} onClick={() => { setTab('history'); setSelectedTripId(null); setTripLocations([]); }}>
           <Route className="w-4 h-4 inline mr-2" />Histórico
         </button>
+        <button className={tabClass('fuel')} onClick={() => setTab('fuel')}>
+          <Fuel className="w-4 h-4 inline mr-2" />Combustível
+        </button>
       </div>
 
-      {/* Map */}
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ height: '450px' }}>
-        <Suspense fallback={<div className="flex items-center justify-center h-full"><Navigation className="w-8 h-8 text-blue-500 animate-spin" /></div>}>
-          <FleetMap
-            locations={tripLocations}
-            activeTrips={activeTrips}
-            employees={employees}
-            selectedTripId={selectedTripId}
-          />
-        </Suspense>
-      </div>
+      {/* Map — hide on fuel tab */}
+      {tab !== 'fuel' && (
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ height: '450px' }}>
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Navigation className="w-8 h-8 text-blue-500 animate-spin" /></div>}>
+            <FleetMap
+              locations={tripLocations}
+              activeTrips={activeTrips}
+              employees={employees}
+              selectedTripId={selectedTripId}
+            />
+          </Suspense>
+        </div>
+      )}
 
       {/* Live Tab */}
       {tab === 'live' && (
@@ -248,6 +254,13 @@ export default function FleetAdminPanel() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Fuel Tab */}
+      {tab === 'fuel' && (
+        <Suspense fallback={<div className="flex items-center justify-center h-32"><Fuel className="w-6 h-6 text-orange-500 animate-spin" /></div>}>
+          <FuelAdminPanel />
+        </Suspense>
       )}
     </div>
   );
