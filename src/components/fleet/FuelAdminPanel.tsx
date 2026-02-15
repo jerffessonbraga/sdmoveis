@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Fuel, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Fuel, TrendingUp, AlertTriangle, BarChart3, Navigation } from 'lucide-react';
+
+const RouteEfficiencyPanel = lazy(() => import('./RouteEfficiencyPanel'));
 
 interface FuelRecord {
   id: string;
@@ -215,6 +217,10 @@ export default function FuelAdminPanel() {
           </table>
         </div>
       </div>
+      {/* Route Efficiency Comparison */}
+      <Suspense fallback={<div className="flex items-center justify-center h-24"><Navigation className="w-5 h-5 text-blue-500 animate-spin" /></div>}>
+        <RouteEfficiencyPanel />
+      </Suspense>
     </div>
   );
 }
