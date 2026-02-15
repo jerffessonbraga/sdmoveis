@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image } from 'lucide-react';
+import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image, PackageCheck } from 'lucide-react';
 import SignaturePad from '@/components/employee/SignaturePad';
 import ToolInventory from '@/components/employee/ToolInventory';
 import { Geolocation } from '@capacitor/geolocation';
@@ -12,6 +12,7 @@ interface Trip {
   ended_at: string | null;
   status: string;
   description: string | null;
+  montagem_status: string;
 }
 
 interface ChecklistItem {
@@ -19,6 +20,7 @@ interface ChecklistItem {
   label: string;
   checked: boolean;
   sort_order: number;
+  checklist_type: string;
 }
 
 interface DriverTripPanelProps {
@@ -26,7 +28,13 @@ interface DriverTripPanelProps {
   employeeName: string;
 }
 
-const DEFAULT_CHECKLIST = [
+const DAILY_CHECKLIST = [
+  'Ferramentas organizadas',
+  'Área de trabalho limpa',
+  'Progresso do dia registrado',
+];
+
+const DELIVERY_CHECKLIST = [
   'Puxadores instalados corretamente',
   'Portas alinhadas e reguladas',
   'Limpeza do ambiente concluída',
@@ -44,9 +52,11 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  // Checklist
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [showChecklist, setShowChecklist] = useState(false);
+  // Checklists
+  const [dailyChecklist, setDailyChecklist] = useState<ChecklistItem[]>([]);
+  const [deliveryChecklist, setDeliveryChecklist] = useState<ChecklistItem[]>([]);
+  const [showDailyChecklist, setShowDailyChecklist] = useState(false);
+  const [showDeliveryChecklist, setShowDeliveryChecklist] = useState(false);
 
   // SOS
   const [showSOS, setShowSOS] = useState(false);
@@ -59,6 +69,8 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isDeliveryMode = activeTrip?.montagem_status === 'concluida';
+
   useEffect(() => {
     fetchEmployeeAndTrips();
     return () => stopTracking();
@@ -67,7 +79,7 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   useEffect(() => {
     if (activeTrip && activeTrip.status === 'active') {
       startTracking(activeTrip.id);
-      fetchChecklist(activeTrip.id);
+      fetchChecklists(activeTrip.id);
       fetchPhotos(activeTrip.id);
     }
   }, [activeTrip?.id]);
@@ -97,7 +109,7 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       .maybeSingle();
 
     if (active) {
-      setActiveTrip(active);
+      setActiveTrip(active as Trip);
       const { count } = await supabase
         .from('trip_locations')
         .select('*', { count: 'exact', head: true })
@@ -115,29 +127,35 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       .order('ended_at', { ascending: false })
       .limit(10);
 
-    if (recent) setRecentTrips(recent);
+    if (recent) setRecentTrips(recent as Trip[]);
     setResolvedEmployeeId(empId);
     setLoading(false);
   };
 
-  const fetchChecklist = async (tripId: string) => {
+  const fetchChecklists = async (tripId: string) => {
     const { data } = await supabase
       .from('trip_checklists')
       .select('*')
       .eq('trip_id', tripId)
       .order('sort_order');
+
     if (data && data.length > 0) {
-      setChecklist(data);
+      setDailyChecklist(data.filter((c: any) => c.checklist_type === 'daily'));
+      setDeliveryChecklist(data.filter((c: any) => c.checklist_type === 'delivery'));
     } else {
-      // Create default checklist for this trip
-      const items = DEFAULT_CHECKLIST.map((label, i) => ({
-        trip_id: tripId,
-        label,
-        checked: false,
-        sort_order: i,
+      // Create default checklists
+      const dailyItems = DAILY_CHECKLIST.map((label, i) => ({
+        trip_id: tripId, label, checked: false, sort_order: i, checklist_type: 'daily' as string,
       }));
-      const { data: created } = await supabase.from('trip_checklists').insert(items).select();
-      if (created) setChecklist(created);
+      const deliveryItems = DELIVERY_CHECKLIST.map((label, i) => ({
+        trip_id: tripId, label, checked: false, sort_order: i + 100, checklist_type: 'delivery' as string,
+      }));
+      const allItems = [...dailyItems, ...deliveryItems];
+      const { data: created } = await supabase.from('trip_checklists').insert(allItems).select();
+      if (created) {
+        setDailyChecklist(created.filter((c: any) => c.checklist_type === 'daily'));
+        setDeliveryChecklist(created.filter((c: any) => c.checklist_type === 'delivery'));
+      }
     }
   };
 
@@ -156,7 +174,10 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       .update({ checked: !item.checked })
       .eq('id', item.id);
     if (!error) {
-      setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, checked: !c.checked } : c));
+      const updater = (prev: ChecklistItem[]) =>
+        prev.map(c => c.id === item.id ? { ...c, checked: !c.checked } : c);
+      if (item.checklist_type === 'daily') setDailyChecklist(updater);
+      else setDeliveryChecklist(updater);
     }
   };
 
@@ -201,22 +222,35 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       return;
     }
 
-    setActiveTrip(data);
+    setActiveTrip(data as Trip);
     setLocationCount(0);
     startTracking(data.id);
     toast({ title: '🚗 Viagem iniciada!', description: 'GPS rastreando a cada 30s' });
   };
 
-  const endTrip = async () => {
+  const setMontagemConcluida = async () => {
     if (!activeTrip) return;
 
-    // Check if checklist is complete
-    const unchecked = checklist.filter(c => !c.checked);
-    if (unchecked.length > 0) {
-      setShowChecklist(true);
-      toast({ title: '⚠️ Complete o checklist', description: `${unchecked.length} item(ns) pendente(s)`, variant: 'destructive' });
+    const uncheckedDelivery = deliveryChecklist.filter(c => !c.checked);
+    if (uncheckedDelivery.length > 0) {
+      setShowDeliveryChecklist(true);
+      toast({ title: '⚠️ Complete o checklist de entrega', description: `${uncheckedDelivery.length} item(ns) pendente(s)`, variant: 'destructive' });
       return;
     }
+
+    const { error } = await supabase
+      .from('trips')
+      .update({ montagem_status: 'concluida' })
+      .eq('id', activeTrip.id);
+
+    if (!error) {
+      setActiveTrip(prev => prev ? { ...prev, montagem_status: 'concluida' } : null);
+      toast({ title: '✅ Montagem marcada como concluída!', description: 'Agora colete a assinatura do cliente.' });
+    }
+  };
+
+  const endTrip = async () => {
+    if (!activeTrip) return;
 
     stopTracking();
     await sendLocation(activeTrip.id);
@@ -231,10 +265,11 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
       return;
     }
 
-    toast({ title: '✅ Viagem finalizada!' });
+    toast({ title: '✅ Viagem do dia finalizada!' });
     setActiveTrip(null);
     setLocationCount(0);
-    setChecklist([]);
+    setDailyChecklist([]);
+    setDeliveryChecklist([]);
     setTripPhotos([]);
     fetchEmployeeAndTrips();
   };
@@ -303,6 +338,9 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
     );
   }
 
+  const dailyChecked = dailyChecklist.filter(c => c.checked).length;
+  const deliveryChecked = deliveryChecklist.filter(c => c.checked).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -317,6 +355,13 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
           <span className="font-bold text-gray-900 text-lg">
             {activeTrip ? 'Viagem em andamento' : 'Nenhuma viagem ativa'}
           </span>
+          {activeTrip && (
+            <span className={`ml-auto text-xs font-bold px-2 py-1 rounded-full ${
+              isDeliveryMode ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {isDeliveryMode ? '✅ Entrega' : '🔧 Em montagem'}
+            </span>
+          )}
         </div>
 
         {activeTrip ? (
@@ -337,15 +382,26 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
             </p>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setShowChecklist(!showChecklist)}
+                onClick={() => setShowDailyChecklist(!showDailyChecklist)}
                 className="flex flex-col items-center gap-1 p-3 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors"
               >
                 <CheckSquare className="w-5 h-5 text-amber-600" />
-                <span className="text-xs font-bold text-amber-700">Checklist</span>
-                <span className="text-[10px] text-amber-500">{checklist.filter(c => c.checked).length}/{checklist.length}</span>
+                <span className="text-xs font-bold text-amber-700">Diário</span>
+                <span className="text-[10px] text-amber-500">{dailyChecked}/{dailyChecklist.length}</span>
               </button>
+              <button
+                onClick={() => setShowDeliveryChecklist(!showDeliveryChecklist)}
+                className="flex flex-col items-center gap-1 p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors"
+              >
+                <PackageCheck className="w-5 h-5 text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700">Entrega</span>
+                <span className="text-[10px] text-emerald-500">{deliveryChecked}/{deliveryChecklist.length}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex flex-col items-center gap-1 p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors"
@@ -373,11 +429,36 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
               onChange={uploadPhoto}
             />
 
-            {/* Checklist Panel */}
-            {showChecklist && (
+            {/* Daily Checklist Panel */}
+            {showDailyChecklist && (
               <div className="bg-amber-50 rounded-xl p-4 space-y-2 border border-amber-200">
-                <p className="font-bold text-amber-800 text-sm mb-2">📋 Checklist de Montagem</p>
-                {checklist.map(item => (
+                <p className="font-bold text-amber-800 text-sm mb-2">📋 Checklist Diário</p>
+                <p className="text-xs text-amber-600 mb-2">Progresso do dia — não bloqueia a finalização da viagem.</p>
+                {dailyChecklist.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleCheckItem(item)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left text-sm transition-all ${
+                      item.checked ? 'bg-green-100 text-green-800' : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className={`w-5 h-5 rounded border-2 flex items-center justify-center text-xs ${
+                      item.checked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'
+                    }`}>
+                      {item.checked && '✓'}
+                    </span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Delivery Checklist Panel */}
+            {showDeliveryChecklist && (
+              <div className="bg-emerald-50 rounded-xl p-4 space-y-2 border border-emerald-200">
+                <p className="font-bold text-emerald-800 text-sm mb-2">📦 Checklist de Entrega</p>
+                <p className="text-xs text-emerald-600 mb-2">Obrigatório para marcar montagem como concluída.</p>
+                {deliveryChecklist.map(item => (
                   <button
                     key={item.id}
                     onClick={() => toggleCheckItem(item)}
@@ -444,14 +525,30 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
               </div>
             )}
 
-            {/* Signature */}
-            <SignaturePad tripId={activeTrip.id} />
+            {/* Signature — only when montagem is complete */}
+            {isDeliveryMode && (
+              <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                <p className="font-bold text-green-800 text-sm mb-3">✍️ Assinatura do Cliente (Entrega Final)</p>
+                <SignaturePad tripId={activeTrip.id} />
+              </div>
+            )}
 
+            {/* Mark as complete button */}
+            {!isDeliveryMode && (
+              <button
+                onClick={setMontagemConcluida}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+              >
+                <PackageCheck className="w-5 h-5" /> Marcar Montagem Concluída
+              </button>
+            )}
+
+            {/* End trip — always available */}
             <button
               onClick={endTrip}
               className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-lg"
             >
-              <Square className="w-5 h-5" /> Finalizar Viagem
+              <Square className="w-5 h-5" /> Finalizar Viagem do Dia
             </button>
           </div>
         ) : (
@@ -477,6 +574,11 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
                 <span>{formatTime(trip.started_at)}</span>
               </div>
               <div className="flex items-center gap-4 text-gray-500">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  trip.montagem_status === 'concluida' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {trip.montagem_status === 'concluida' ? 'Entregue' : 'Parcial'}
+                </span>
                 <span className="font-bold text-gray-700">
                   <Clock className="w-3 h-3 inline mr-1" />
                   {calcDuration(trip.started_at, trip.ended_at)}
