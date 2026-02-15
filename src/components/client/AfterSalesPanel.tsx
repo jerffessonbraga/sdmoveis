@@ -23,11 +23,6 @@ const CONSERVATION_TIPS = [
     desc: 'Mantenha o ambiente ventilado. Umidade excessiva pode causar inchaço no MDF. Ideal: entre 40% e 60% de umidade relativa.',
   },
   {
-    icon: <Wrench className="w-5 h-5 text-green-500" />,
-    title: 'Regulagem de Dobradiças',
-    desc: 'Se as portas ficarem desalinhadas, ajuste os parafusos das dobradiças (lateral, altura e profundidade) com chave Phillips.',
-  },
-  {
     icon: <AlertTriangle className="w-5 h-5 text-orange-500" />,
     title: 'Peso nas Prateleiras',
     desc: 'Respeite a capacidade de carga. Prateleiras longas (acima de 80cm) devem ter suporte central para evitar deformação.',
@@ -125,18 +120,6 @@ const AfterSalesPanel: React.FC = () => {
             ))}
           </div>
 
-          {/* Video tip */}
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 text-white">
-            <h3 className="text-xl font-black mb-2 flex items-center gap-2">
-              🎬 Dica em Vídeo
-            </h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Assista como regular as dobradiças dos seus móveis planejados em 3 passos simples.
-            </p>
-            <div className="bg-white/10 rounded-2xl aspect-video flex items-center justify-center">
-              <p className="text-gray-400 text-sm">Vídeo em breve</p>
-            </div>
-          </div>
         </div>
       )}
 
