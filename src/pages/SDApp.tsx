@@ -282,7 +282,10 @@ const App: React.FC = () => {
             {authState === 'ADMIN' ? (
               <>
                 <NavIcon icon="layout-dashboard" label="Início" active={view === ViewMode.DASHBOARD} onClick={() => setView(ViewMode.DASHBOARD)} />
-                <NavIcon icon="box" label="Promob SD" active={view === ViewMode.PROMOB} onClick={() => setView(ViewMode.PROMOB)} />
+                <NavIcon icon="box" label="Promob SD" active={false} onClick={() => {
+                  window.location.href = "promobplus://open";
+                  toast({ title: "Abrindo Promob Plus...", description: "Se não abrir automaticamente, abra o Promob Plus diretamente no notebook." });
+                }} />
                 <NavIcon icon="file-text" label="Vendas" active={view === ViewMode.CONTRACTS} onClick={() => setView(ViewMode.CONTRACTS)} />
                 <NavIcon icon="clock" label="Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
                 <NavIcon icon="navigation" label="Frota" active={view === ViewMode.FLEET} onClick={() => setView(ViewMode.FLEET)} />
