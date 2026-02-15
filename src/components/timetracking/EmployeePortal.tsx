@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Clock, Play, Square, DollarSign, Calendar, User, Send, CheckCircle, XCircle, Loader2, Download, Fuel } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 interface Employee {
   id: string;
@@ -157,51 +158,192 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
   const calcFuelAllowance = () => getPeriodAdjustments().filter(a => a.type === 'fuel_allowance').reduce((s, a) => s + Number(a.amount), 0);
   const calcDeductions = () => getPeriodAdjustments().filter(a => a.type === 'advance').reduce((s, a) => s + Number(a.amount), 0);
 
-  const downloadPayslip = () => {
+  const downloadPayslip = async () => {
     if (!employee) return;
     const hours = calcHours();
     const base = hours * employee.hourly_rate;
     const overtime = calcOvertime();
     const fuelAllowance = calcFuelAllowance();
     const deductions = calcDeductions();
-    const total = base + overtime + fuelAllowance - deductions;
+    const totalProventos = base + overtime + fuelAllowance;
+    const total = totalProventos - deductions;
     const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
+    const today = new Date().toLocaleDateString('pt-BR');
 
-    const content = `
-════════════════════════════════════════
-     SD MÓVEIS PROJETADOS
-     CONTRACHEQUE - ${periodLabel.toUpperCase()}
-════════════════════════════════════════
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210;
+    const margin = 15;
+    const contentW = W - margin * 2;
 
-Funcionário: ${employee.name}
-Cargo:       ${employee.role || '-'}
-Período:     ${periodLabel}
-Data:        ${new Date().toLocaleDateString('pt-BR')}
+    // Load logo
+    let logoData: string | null = null;
+    try {
+      const resp = await fetch('/images/logo-sd-payslip.jpeg');
+      const blob = await resp.blob();
+      logoData = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } catch { /* skip logo */ }
 
-────────────────────────────────────────
-PROVENTOS
-────────────────────────────────────────
-Horas trabalhadas:   ${hours.toFixed(1)}h
-Valor/hora:          R$ ${employee.hourly_rate.toFixed(2)}
-Salário Base:        R$ ${base.toFixed(2)}
-${overtime > 0 ? `Horas Extra:         +R$ ${overtime.toFixed(2)}\n` : ''}${fuelAllowance > 0 ? `Vale Combustível:    +R$ ${fuelAllowance.toFixed(2)}\n` : ''}
-────────────────────────────────────────
-DESCONTOS
-────────────────────────────────────────
-${deductions > 0 ? `Adiantamentos:       -R$ ${deductions.toFixed(2)}\n` : 'Nenhum desconto\n'}
-════════════════════════════════════════
-TOTAL LÍQUIDO:       R$ ${total.toFixed(2)}
-════════════════════════════════════════
-    `.trim();
+    // ── HEADER ──
+    const gold = [184, 151, 60] as const;
+    const darkGray = [40, 40, 40] as const;
 
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `contracheque-${employee.name.toLowerCase().replace(/\s+/g, '-')}-${periodLabel.toLowerCase()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: '📄 Contracheque baixado!' });
+    // Gold top bar
+    doc.setFillColor(...gold);
+    doc.rect(0, 0, W, 4, 'F');
+
+    // Logo
+    if (logoData) {
+      doc.addImage(logoData, 'JPEG', margin, 10, 22, 22);
+    }
+
+    // Company info
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(...darkGray);
+    doc.text('SD MÓVEIS PROJETADOS', logoData ? margin + 26 : margin, 19);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text('CNPJ: 27.693.081/0001-09', logoData ? margin + 26 : margin, 25);
+    doc.text('Rua Jorge Figueiredo, 740 • Caucaia - CE • CEP 61880-000', logoData ? margin + 26 : margin, 30);
+
+    // Title bar
+    doc.setFillColor(...darkGray);
+    doc.rect(margin, 38, contentW, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`CONTRACHEQUE — ${periodLabel.toUpperCase()}`, W / 2, 44.5, { align: 'center' });
+
+    // ── EMPLOYEE INFO ──
+    let y = 56;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(margin, y - 4, contentW, 18, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...darkGray);
+    doc.text('Funcionário:', margin + 3, y + 1);
+    doc.setFont('helvetica', 'normal');
+    doc.text(employee.name.toUpperCase(), margin + 30, y + 1);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cargo:', margin + 3, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(employee.role || '-', margin + 30, y + 7);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Período:', contentW / 2 + margin, y + 1);
+    doc.setFont('helvetica', 'normal');
+    doc.text(periodLabel, contentW / 2 + margin + 20, y + 1);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Data:', contentW / 2 + margin, y + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(today, contentW / 2 + margin + 20, y + 7);
+
+    // ── TABLE: PROVENTOS ──
+    y = 80;
+    doc.setFillColor(...gold);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text('PROVENTOS', margin + 3, y + 5.5);
+    doc.text('VALOR (R$)', margin + contentW - 3, y + 5.5, { align: 'right' });
+
+    y += 8;
+    const drawRow = (label: string, value: string, bg: boolean) => {
+      if (bg) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(margin, y, contentW, 7, 'F');
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...darkGray);
+      doc.text(label, margin + 3, y + 5);
+      doc.setFont('helvetica', 'bold');
+      doc.text(value, margin + contentW - 3, y + 5, { align: 'right' });
+      y += 7;
+    };
+
+    drawRow(`Salário Base (${hours.toFixed(1)}h × R$ ${employee.hourly_rate.toFixed(2)})`, base.toFixed(2), true);
+    if (overtime > 0) drawRow('Horas Extra', `+ ${overtime.toFixed(2)}`, false);
+    if (fuelAllowance > 0) drawRow('Vale Combustível', `+ ${fuelAllowance.toFixed(2)}`, overtime > 0 ? true : false);
+
+    // Subtotal proventos
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, margin + contentW, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...darkGray);
+    doc.text('Total Proventos', margin + 3, y + 5);
+    doc.setTextColor(22, 163, 74);
+    doc.text(totalProventos.toFixed(2), margin + contentW - 3, y + 5, { align: 'right' });
+    y += 9;
+
+    // ── TABLE: DESCONTOS ──
+    doc.setFillColor(220, 38, 38);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text('DESCONTOS', margin + 3, y + 5.5);
+    doc.text('VALOR (R$)', margin + contentW - 3, y + 5.5, { align: 'right' });
+    y += 8;
+
+    if (deductions > 0) {
+      drawRow('Adiantamentos / Vales', `- ${deductions.toFixed(2)}`, true);
+    } else {
+      drawRow('Nenhum desconto no período', '0.00', true);
+    }
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, margin + contentW, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Descontos', margin + 3, y + 5);
+    doc.setTextColor(220, 38, 38);
+    doc.text(deductions.toFixed(2), margin + contentW - 3, y + 5, { align: 'right' });
+    y += 12;
+
+    // ── TOTAL LÍQUIDO ──
+    doc.setFillColor(...darkGray);
+    doc.rect(margin, y, contentW, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TOTAL LÍQUIDO', margin + 5, y + 8);
+    doc.setTextColor(...gold);
+    doc.setFontSize(14);
+    doc.text(`R$ ${total.toFixed(2)}`, margin + contentW - 5, y + 8.5, { align: 'right' });
+
+    // ── FOOTER ──
+    y += 25;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, margin + contentW / 2 - 10, y);
+    doc.line(margin + contentW / 2 + 10, y, margin + contentW, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Assinatura do Empregador', margin + contentW / 4, y + 5, { align: 'center' });
+    doc.text('Assinatura do Funcionário', margin + contentW * 3 / 4, y + 5, { align: 'center' });
+
+    // Gold bottom bar
+    doc.setFillColor(...gold);
+    doc.rect(0, 293, W, 4, 'F');
+
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Documento gerado automaticamente pelo sistema SD Móveis Projetados', W / 2, 290, { align: 'center' });
+
+    doc.save(`contracheque-${employee.name.toLowerCase().replace(/\s+/g, '-')}-${periodLabel.toLowerCase()}.pdf`);
+    toast({ title: '📄 Contracheque PDF baixado!' });
   };
 
   if (loading) {
