@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Clock, UserPlus, Play, Square, Calendar, DollarSign, Users, Trash2, Edit2, Save, X, Plus, Minus
+  Clock, UserPlus, Play, Square, Calendar, DollarSign, Users, Trash2, Edit2, Save, X, Plus, Minus, MessageCircle, Mail
 } from 'lucide-react';
 
 interface Employee {
@@ -205,6 +205,45 @@ export default function TimeTrackingPanel() {
     await supabase.from('employee_adjustments').delete().eq('id', id);
     toast({ title: '🗑️ Lançamento removido' });
     fetchData();
+  };
+
+  const buildPayslipText = (emp: Employee) => {
+    const hours = calcHours(emp.id);
+    const base = hours * emp.hourly_rate;
+    const overtime = calcOvertime(emp.id);
+    const deductions = calcDeductions(emp.id);
+    const total = base + overtime - deductions;
+    const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
+    return `*SD Móveis Projetados - Contracheque*\n\n` +
+      `👤 *${emp.name}*\n` +
+      `📋 Cargo: ${emp.role || '-'}\n` +
+      `📅 Período: ${periodLabel}\n\n` +
+      `⏱ Horas trabalhadas: ${hours.toFixed(1)}h\n` +
+      `💰 Valor/hora: R$ ${emp.hourly_rate.toFixed(2)}\n` +
+      `💵 Base: R$ ${base.toFixed(2)}\n` +
+      (overtime > 0 ? `✅ Horas Extra: +R$ ${overtime.toFixed(2)}\n` : '') +
+      (deductions > 0 ? `❌ Descontos: -R$ ${deductions.toFixed(2)}\n` : '') +
+      `\n*💰 Total Líquido: R$ ${total.toFixed(2)}*`;
+  };
+
+  const sendViaWhatsApp = (emp: Employee) => {
+    if (!emp.phone) {
+      toast({ title: '⚠️ Sem telefone', description: `${emp.name} não tem telefone cadastrado.`, variant: 'destructive' });
+      return;
+    }
+    const phone = emp.phone.replace(/\D/g, '');
+    const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    const text = encodeURIComponent(buildPayslipText(emp));
+    window.open(`https://wa.me/${fullPhone}?text=${text}`, '_blank');
+  };
+
+  const sendViaEmail = (emp: Employee) => {
+    const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
+    const subject = encodeURIComponent(`Contracheque - ${periodLabel} - SD Móveis Projetados`);
+    const body = encodeURIComponent(buildPayslipText(emp).replace(/\*/g, ''));
+    const mailto = `mailto:?subject=${subject}&body=${body}`;
+    window.open(mailto, '_blank');
+    toast({ title: '📧 Email', description: 'Cliente de e-mail aberto. Adicione o destinatário.' });
   };
 
   if (loading) {
@@ -494,6 +533,7 @@ export default function TimeTrackingPanel() {
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-green-600">+ H.Extra</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-red-600">- Descontos</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Total Líquido</th>
+                  <th className="text-center px-6 py-4 text-sm font-bold text-gray-600">Enviar</th>
                 </tr>
               </thead>
               <tbody>
@@ -518,6 +558,24 @@ export default function TimeTrackingPanel() {
                       <td className="px-6 py-4 text-right font-black text-lg" style={{ color: total >= 0 ? '#16a34a' : '#dc2626' }}>
                         R$ {total.toFixed(2)}
                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => sendViaWhatsApp(emp)}
+                            className="p-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
+                            title="Enviar por WhatsApp"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => sendViaEmail(emp)}
+                            className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
+                            title="Enviar por Email"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -541,6 +599,7 @@ export default function TimeTrackingPanel() {
                       return s + (h * e.hourly_rate) + calcOvertime(e.id) - calcDeductions(e.id);
                     }, 0).toFixed(2)}
                   </td>
+                  <td className="px-6 py-4"></td>
                 </tr>
               </tfoot>
             </table>
