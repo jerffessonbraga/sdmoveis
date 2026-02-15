@@ -25,7 +25,7 @@ interface TimeEntry {
 interface Adjustment {
   id: string;
   employee_id: string;
-  type: 'overtime' | 'advance' | 'discount';
+  type: 'overtime' | 'advance' | 'fuel_allowance';
   description: string | null;
   amount: number;
   hours: number;
@@ -51,7 +51,7 @@ export default function TimeTrackingPanel() {
   // Adjustment form
   const [showAdjForm, setShowAdjForm] = useState(false);
   const [adjEmployeeId, setAdjEmployeeId] = useState('');
-  const [adjType, setAdjType] = useState<'overtime' | 'advance' | 'discount'>('overtime');
+  const [adjType, setAdjType] = useState<'overtime' | 'advance' | 'fuel_allowance'>('overtime');
   const [adjDescription, setAdjDescription] = useState('');
   const [adjAmount, setAdjAmount] = useState('');
   const [adjHours, setAdjHours] = useState('');
@@ -172,7 +172,14 @@ export default function TimeTrackingPanel() {
   const calcDeductions = (employeeId: string) => {
     const adjs = getEmployeeAdjustments(employeeId);
     return adjs
-      .filter(a => a.type === 'advance' || a.type === 'discount')
+      .filter(a => a.type === 'advance')
+      .reduce((sum, a) => sum + Number(a.amount), 0);
+  };
+
+  const calcFuelAllowance = (employeeId: string) => {
+    const adjs = getEmployeeAdjustments(employeeId);
+    return adjs
+      .filter(a => a.type === 'fuel_allowance')
       .reduce((sum, a) => sum + Number(a.amount), 0);
   };
 
@@ -211,8 +218,9 @@ export default function TimeTrackingPanel() {
     const hours = calcHours(emp.id);
     const base = hours * emp.hourly_rate;
     const overtime = calcOvertime(emp.id);
+    const fuelAllowance = calcFuelAllowance(emp.id);
     const deductions = calcDeductions(emp.id);
-    const total = base + overtime - deductions;
+    const total = base + overtime + fuelAllowance - deductions;
     const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
     return `*SD Móveis Projetados - Contracheque*\n\n` +
       `👤 *${emp.name}*\n` +
@@ -222,7 +230,8 @@ export default function TimeTrackingPanel() {
       `💰 Valor/hora: R$ ${emp.hourly_rate.toFixed(2)}\n` +
       `💵 Base: R$ ${base.toFixed(2)}\n` +
       (overtime > 0 ? `✅ Horas Extra: +R$ ${overtime.toFixed(2)}\n` : '') +
-      (deductions > 0 ? `❌ Descontos: -R$ ${deductions.toFixed(2)}\n` : '') +
+      (fuelAllowance > 0 ? `⛽ Vale Combustível: +R$ ${fuelAllowance.toFixed(2)}\n` : '') +
+      (deductions > 0 ? `❌ Adiantamentos: -R$ ${deductions.toFixed(2)}\n` : '') +
       `\n*💰 Total Líquido: R$ ${total.toFixed(2)}*`;
   };
 
@@ -437,7 +446,7 @@ export default function TimeTrackingPanel() {
               onClick={() => { setShowAdjForm(!showAdjForm); if (!adjEmployeeId && employees.length) setAdjEmployeeId(employees[0].id); }}
               className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2"
             >
-              <Plus className="w-4 h-4" /> Lançar Hora Extra / Desconto
+              <Plus className="w-4 h-4" /> Lançar Hora Extra / Vale Combustível
             </button>
           </div>
 
@@ -466,8 +475,8 @@ export default function TimeTrackingPanel() {
                     className="border rounded-xl px-4 py-3 text-sm w-full focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   >
                     <option value="overtime">⏰ Hora Extra</option>
-                    <option value="advance">💵 Adiantamento / Vale</option>
-                    <option value="discount">📉 Desconto</option>
+                    <option value="fuel_allowance">⛽ Vale Combustível</option>
+                    <option value="advance">💵 Adiantamento / Desconto</option>
                   </select>
                 </div>
                 <div>
@@ -530,8 +539,9 @@ export default function TimeTrackingPanel() {
                   <th className="text-left px-6 py-4 text-sm font-bold text-gray-600">Cargo</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Horas</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Valor/h</th>
-                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-green-600">+ H.Extra</th>
-                  <th className="text-right px-6 py-4 text-sm font-bold text-gray-600 text-red-600">- Descontos</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-green-600">+ H.Extra</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-orange-600">⛽ V.Combustível</th>
+                  <th className="text-right px-6 py-4 text-sm font-bold text-red-600">- Adiantamentos</th>
                   <th className="text-right px-6 py-4 text-sm font-bold text-gray-600">Total Líquido</th>
                   <th className="text-center px-6 py-4 text-sm font-bold text-gray-600">Enviar</th>
                 </tr>
@@ -541,8 +551,9 @@ export default function TimeTrackingPanel() {
                   const hours = calcHours(emp.id);
                   const base = hours * emp.hourly_rate;
                   const overtime = calcOvertime(emp.id);
+                  const fuelAllowance = calcFuelAllowance(emp.id);
                   const deductions = calcDeductions(emp.id);
-                  const total = base + overtime - deductions;
+                  const total = base + overtime + fuelAllowance - deductions;
                   return (
                     <tr key={emp.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-6 py-4 font-bold text-gray-900">{emp.name}</td>
@@ -551,6 +562,9 @@ export default function TimeTrackingPanel() {
                       <td className="px-6 py-4 text-right text-gray-500">R$ {emp.hourly_rate.toFixed(2)}</td>
                       <td className="px-6 py-4 text-right font-bold text-green-600">
                         {overtime > 0 ? `+R$ ${overtime.toFixed(2)}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-orange-600">
+                        {fuelAllowance > 0 ? `+R$ ${fuelAllowance.toFixed(2)}` : '-'}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-red-600">
                         {deductions > 0 ? `-R$ ${deductions.toFixed(2)}` : '-'}
@@ -590,13 +604,16 @@ export default function TimeTrackingPanel() {
                   <td className="px-6 py-4 text-right font-bold text-green-400">
                     +R$ {employees.reduce((s, e) => s + calcOvertime(e.id), 0).toFixed(2)}
                   </td>
+                  <td className="px-6 py-4 text-right font-bold text-orange-400">
+                    +R$ {employees.reduce((s, e) => s + calcFuelAllowance(e.id), 0).toFixed(2)}
+                  </td>
                   <td className="px-6 py-4 text-right font-bold text-red-400">
                     -R$ {employees.reduce((s, e) => s + calcDeductions(e.id), 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 text-right font-black text-amber-400 text-xl">
                     R$ {employees.reduce((s, e) => {
                       const h = calcHours(e.id);
-                      return s + (h * e.hourly_rate) + calcOvertime(e.id) - calcDeductions(e.id);
+                      return s + (h * e.hourly_rate) + calcOvertime(e.id) + calcFuelAllowance(e.id) - calcDeductions(e.id);
                     }, 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4"></td>
@@ -614,7 +631,7 @@ export default function TimeTrackingPanel() {
               <div className="space-y-2 max-h-64 overflow-auto">
                 {adjustments.slice(0, 20).map(adj => {
                   const emp = employees.find(e => e.id === adj.employee_id);
-                  const isPositive = adj.type === 'overtime';
+                  const isPositive = adj.type === 'overtime' || adj.type === 'fuel_allowance';
                   return (
                     <div key={adj.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm">
                       <div className="flex items-center gap-3">
@@ -622,10 +639,10 @@ export default function TimeTrackingPanel() {
                         <span className="font-bold text-gray-900">{emp?.name || 'Desconhecido'}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           adj.type === 'overtime' ? 'bg-green-100 text-green-700' :
-                          adj.type === 'advance' ? 'bg-amber-100 text-amber-700' :
+                          adj.type === 'fuel_allowance' ? 'bg-orange-100 text-orange-700' :
                           'bg-red-100 text-red-700'
                         }`}>
-                          {adj.type === 'overtime' ? '⏰ Hora Extra' : adj.type === 'advance' ? '💵 Adiantamento' : '📉 Desconto'}
+                          {adj.type === 'overtime' ? '⏰ Hora Extra' : adj.type === 'fuel_allowance' ? '⛽ Vale Combustível' : '💵 Adiantamento'}
                         </span>
                         {adj.description && <span className="text-gray-400">{adj.description}</span>}
                       </div>
