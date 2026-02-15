@@ -156,6 +156,7 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
 
   const calcOvertime = () => getPeriodAdjustments().filter(a => a.type === 'overtime').reduce((s, a) => s + Number(a.amount), 0);
   const calcFuelAllowance = () => getPeriodAdjustments().filter(a => a.type === 'fuel_allowance').reduce((s, a) => s + Number(a.amount), 0);
+  const calcMealAllowance = () => getPeriodAdjustments().filter(a => a.type === 'meal_allowance').reduce((s, a) => s + Number(a.amount), 0);
   const calcDeductions = () => getPeriodAdjustments().filter(a => a.type === 'advance').reduce((s, a) => s + Number(a.amount), 0);
 
   const downloadPayslip = async () => {
@@ -164,8 +165,9 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
     const base = hours * employee.hourly_rate;
     const overtime = calcOvertime();
     const fuelAllowance = calcFuelAllowance();
+    const mealAllowance = calcMealAllowance();
     const deductions = calcDeductions();
-    const totalProventos = base + overtime + fuelAllowance;
+    const totalProventos = base + overtime + fuelAllowance + mealAllowance;
     const total = totalProventos - deductions;
     const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
     const today = new Date().toLocaleDateString('pt-BR');
@@ -275,6 +277,7 @@ export default function EmployeePortal({ employeeName }: EmployeePortalProps) {
     drawRow(`Salário Base (${hours.toFixed(1)}h × R$ ${employee.hourly_rate.toFixed(2)})`, base.toFixed(2), true);
     if (overtime > 0) drawRow('Horas Extra', `+ ${overtime.toFixed(2)}`, false);
     if (fuelAllowance > 0) drawRow('Vale Combustível', `+ ${fuelAllowance.toFixed(2)}`, overtime > 0 ? true : false);
+    if (mealAllowance > 0) drawRow('Vale Refeição', `+ ${mealAllowance.toFixed(2)}`, true);
 
     // Subtotal proventos
     doc.setDrawColor(200, 200, 200);
