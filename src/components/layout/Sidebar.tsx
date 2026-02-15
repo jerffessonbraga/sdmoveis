@@ -14,18 +14,28 @@ import {
   Box,
   Image,
 } from "lucide-react";
+import { toast } from "sonner";
 import logoSD from "@/assets/logo-sd.jpeg";
 
-const menuItems: { icon: any; label: string; href: string; external?: boolean }[] = [
+const menuItems: { icon: any; label: string; href: string; external?: boolean; localApp?: boolean }[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: FolderKanban, label: "Projetos", href: "/projects" },
-  { icon: Box, label: "Promob Plus", href: "https://www.promob.com/promob-plus", external: true },
+  { icon: Box, label: "Promob Plus", href: "#", localApp: true },
   { icon: Image, label: "Renderização", href: "/render" },
   { icon: Sparkles, label: "Assistente IA", href: "/ai-assistant" },
   { icon: Users, label: "Clientes", href: "/clients" },
   { icon: MessageSquare, label: "CRM WhatsApp", href: "/crm" },
   { icon: Settings, label: "Configurações", href: "/settings" },
 ];
+
+const handleOpenPromob = () => {
+  // Try custom protocol to open local Promob Plus
+  window.location.href = "promobplus://open";
+  toast.info("Abrindo Promob Plus...", {
+    description: "Se não abrir automaticamente, abra o Promob Plus diretamente no notebook.",
+    duration: 5000,
+  });
+};
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -77,6 +87,14 @@ export function Sidebar() {
               )}
             </Button>
           );
+
+          if (item.localApp) {
+            return (
+              <div key={item.label} onClick={handleOpenPromob} className="cursor-pointer">
+                {content}
+              </div>
+            );
+          }
 
           return item.external ? (
             <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
