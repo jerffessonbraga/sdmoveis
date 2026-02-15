@@ -1,7 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Fuel, Camera, Send } from 'lucide-react';
+
+interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+}
 
 interface FuelLogFormProps {
   employeeId: string;
@@ -19,6 +25,14 @@ export default function FuelLogForm({ employeeId, tripId, onSaved }: FuelLogForm
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+
+  useEffect(() => {
+    supabase.from('vehicles').select('id, plate, model').eq('active', true).then(({ data }) => {
+      if (data) setVehicles(data);
+    });
+  }, []);
 
   const liters = Number(pricePerLiter) > 0 ? Number(totalPaid) / Number(pricePerLiter) : 0;
 
@@ -42,7 +56,7 @@ export default function FuelLogForm({ employeeId, tripId, onSaved }: FuelLogForm
   };
 
   const handleSubmit = async () => {
-    if (!odometerKm || !pricePerLiter || !totalPaid) {
+    if (!odometerKm || !pricePerLiter || !totalPaid || !selectedVehicleId) {
       toast({ title: '⚠️ Preencha todos os campos obrigatórios', variant: 'destructive' });
       return;
     }
@@ -51,6 +65,7 @@ export default function FuelLogForm({ employeeId, tripId, onSaved }: FuelLogForm
     const { error } = await supabase.from('fuel_records').insert({
       employee_id: employeeId,
       trip_id: tripId || null,
+      vehicle_id: selectedVehicleId,
       odometer_km: Number(odometerKm),
       price_per_liter: Number(pricePerLiter),
       total_paid: Number(totalPaid),
@@ -78,6 +93,20 @@ export default function FuelLogForm({ employeeId, tripId, onSaved }: FuelLogForm
       <p className="font-bold text-orange-800 text-sm flex items-center gap-2">
         <Fuel className="w-4 h-4" /> Registrar Abastecimento
       </p>
+
+      <div>
+        <label className="text-xs text-orange-700 font-bold">Veículo *</label>
+        <select
+          value={selectedVehicleId}
+          onChange={e => setSelectedVehicleId(e.target.value)}
+          className="w-full p-2 rounded-lg border border-orange-200 text-sm bg-white mt-1 font-bold"
+        >
+          <option value="">Selecione o veículo...</option>
+          {vehicles.map(v => (
+            <option key={v.id} value={v.id}>{v.plate} — {v.model}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -150,7 +179,7 @@ export default function FuelLogForm({ employeeId, tripId, onSaved }: FuelLogForm
 
       <button
         onClick={handleSubmit}
-        disabled={saving || !odometerKm || !pricePerLiter || !totalPaid}
+        disabled={saving || !odometerKm || !pricePerLiter || !totalPaid || !selectedVehicleId}
         className="w-full bg-orange-500 text-white py-2 rounded-lg font-bold text-sm hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
       >
         <Send className="w-4 h-4" />

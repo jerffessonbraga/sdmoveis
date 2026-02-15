@@ -7,6 +7,7 @@ const RouteEfficiencyPanel = lazy(() => import('./RouteEfficiencyPanel'));
 interface FuelRecord {
   id: string;
   employee_id: string;
+  vehicle_id: string | null;
   trip_id: string | null;
   odometer_km: number;
   price_per_liter: number;
@@ -22,6 +23,12 @@ interface Employee {
   name: string;
 }
 
+interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+}
+
 interface FuelWithEfficiency extends FuelRecord {
   kmL: number | null;
   distanceSinceLastFuel: number | null;
@@ -30,7 +37,9 @@ interface FuelWithEfficiency extends FuelRecord {
 export default function FuelAdminPanel() {
   const [records, setRecords] = useState<FuelWithEfficiency[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [selectedVehicle, setSelectedVehicle] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const DEVIATION_THRESHOLD = 15; // percent
 
@@ -40,13 +49,15 @@ export default function FuelAdminPanel() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [empRes, fuelRes] = await Promise.all([
+    const [empRes, fuelRes, vehRes] = await Promise.all([
       supabase.from('employees').select('id, name').eq('active', true),
       supabase.from('fuel_records').select('*').order('created_at', { ascending: true }),
+      supabase.from('vehicles').select('id, plate, model').eq('active', true),
     ]);
 
     const emps = empRes.data || [];
     const rawRecords = (fuelRes.data || []) as FuelRecord[];
+    const vehs = vehRes.data || [];
 
     // Calculate efficiency per employee
     const byEmployee: Record<string, FuelRecord[]> = {};
@@ -76,13 +87,23 @@ export default function FuelAdminPanel() {
     enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     setEmployees(emps);
+    setVehicles(vehs);
     setRecords(enriched);
     setLoading(false);
   };
 
-  const filtered = selectedEmployee === 'all' ? records : records.filter(r => r.employee_id === selectedEmployee);
+  const filtered = records.filter(r => {
+    if (selectedEmployee !== 'all' && r.employee_id !== selectedEmployee) return false;
+    if (selectedVehicle !== 'all' && r.vehicle_id !== selectedVehicle) return false;
+    return true;
+  });
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name || 'Desconhecido';
+  const getVehicleName = (id: string | null) => {
+    if (!id) return '—';
+    const v = vehicles.find(v => v.id === id);
+    return v ? `${v.plate}` : '—';
+  };
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -117,16 +138,28 @@ export default function FuelAdminPanel() {
           </h2>
           <p className="text-gray-500 text-sm mt-1">Controle de combustível e eficiência</p>
         </div>
-        <select
-          value={selectedEmployee}
-          onChange={e => setSelectedEmployee(e.target.value)}
-          className="p-2 rounded-xl border border-gray-200 text-sm font-bold bg-white"
-        >
-          <option value="all">Todos Motoristas</option>
-          {employees.map(e => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={selectedEmployee}
+            onChange={e => setSelectedEmployee(e.target.value)}
+            className="p-2 rounded-xl border border-gray-200 text-sm font-bold bg-white"
+          >
+            <option value="all">Todos Motoristas</option>
+            {employees.map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedVehicle}
+            onChange={e => setSelectedVehicle(e.target.value)}
+            className="p-2 rounded-xl border border-gray-200 text-sm font-bold bg-white"
+          >
+            <option value="all">Todos Veículos</option>
+            {vehicles.map(v => (
+              <option key={v.id} value={v.id}>{v.plate} — {v.model}</option>
+            ))}
+          </select>
+        </div>
       </header>
 
       {/* Stats Cards */}
@@ -182,6 +215,7 @@ export default function FuelAdminPanel() {
               <tr>
                 <th className="px-4 py-2 text-left font-bold text-gray-600">Data</th>
                 <th className="px-4 py-2 text-left font-bold text-gray-600">Motorista</th>
+                <th className="px-4 py-2 text-left font-bold text-gray-600">Veículo</th>
                 <th className="px-4 py-2 text-right font-bold text-gray-600">KM</th>
                 <th className="px-4 py-2 text-right font-bold text-gray-600">Litros</th>
                 <th className="px-4 py-2 text-right font-bold text-gray-600">R$</th>
@@ -196,6 +230,7 @@ export default function FuelAdminPanel() {
                   <tr key={r.id} className={`border-t border-gray-50 hover:bg-gray-50 ${isLow ? 'bg-red-50' : ''}`}>
                     <td className="px-4 py-3">{formatDate(r.created_at)}</td>
                     <td className="px-4 py-3 font-bold">{getEmpName(r.employee_id)}</td>
+                    <td className="px-4 py-3 text-gray-600">{getVehicleName(r.vehicle_id)}</td>
                     <td className="px-4 py-3 text-right">{Number(r.odometer_km).toLocaleString('pt-BR')}</td>
                     <td className="px-4 py-3 text-right">{Number(r.liters).toFixed(1)}</td>
                     <td className="px-4 py-3 text-right font-bold">R$ {Number(r.total_paid).toFixed(2)}</td>
@@ -210,7 +245,7 @@ export default function FuelAdminPanel() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 py-8">Nenhum abastecimento registrado</td>
+                  <td colSpan={8} className="text-center text-gray-400 py-8">Nenhum abastecimento registrado</td>
                 </tr>
               )}
             </tbody>
