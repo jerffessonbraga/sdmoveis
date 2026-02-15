@@ -226,9 +226,8 @@ export default function TimeTrackingPanel() {
     const base = hours * emp.hourly_rate;
     const overtime = calcOvertime(emp.id);
     const fuelAllowance = calcFuelAllowance(emp.id);
-    const mealAllowance = calcMealAllowance(emp.id);
     const deductions = calcDeductions(emp.id);
-    const total = base + overtime + fuelAllowance + mealAllowance - deductions;
+    const total = base + overtime + fuelAllowance - deductions;
     const periodLabel = period === 'week' ? 'Semana' : period === 'biweekly' ? 'Quinzena' : 'Mês';
     return `*SD Móveis Projetados - Contracheque*\n\n` +
       `👤 *${emp.name}*\n` +
@@ -239,7 +238,6 @@ export default function TimeTrackingPanel() {
       `💵 Base: R$ ${base.toFixed(2)}\n` +
       (overtime > 0 ? `✅ Horas Extra: +R$ ${overtime.toFixed(2)}\n` : '') +
       (fuelAllowance > 0 ? `⛽ Vale Combustível: +R$ ${fuelAllowance.toFixed(2)}\n` : '') +
-      (mealAllowance > 0 ? `🍽️ Vale Refeição: +R$ ${mealAllowance.toFixed(2)}\n` : '') +
       (deductions > 0 ? `❌ Adiantamentos: -R$ ${deductions.toFixed(2)}\n` : '') +
       `\n*💰 Total Líquido: R$ ${total.toFixed(2)}*`;
   };
@@ -563,9 +561,9 @@ export default function TimeTrackingPanel() {
                   const base = hours * emp.hourly_rate;
                    const overtime = calcOvertime(emp.id);
                    const fuelAllowance = calcFuelAllowance(emp.id);
-                   const mealAllowance = calcMealAllowance(emp.id);
-                   const deductions = calcDeductions(emp.id);
-                   const total = base + overtime + fuelAllowance + mealAllowance - deductions;
+                    const mealAllowance = calcMealAllowance(emp.id);
+                    const deductions = calcDeductions(emp.id);
+                    const total = base + overtime + fuelAllowance - deductions;
                   return (
                     <tr key={emp.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-6 py-4 font-bold text-gray-900">{emp.name}</td>
@@ -631,7 +629,7 @@ export default function TimeTrackingPanel() {
                    <td className="px-6 py-4 text-right font-black text-amber-400 text-xl">
                      R$ {employees.reduce((s, e) => {
                        const h = calcHours(e.id);
-                       return s + (h * e.hourly_rate) + calcOvertime(e.id) + calcFuelAllowance(e.id) + calcMealAllowance(e.id) - calcDeductions(e.id);
+                       return s + (h * e.hourly_rate) + calcOvertime(e.id) + calcFuelAllowance(e.id) - calcDeductions(e.id);
                      }, 0).toFixed(2)}
                    </td>
                    <td className="px-6 py-4"></td>

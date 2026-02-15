@@ -1,0 +1,2 @@
+ALTER TABLE public.employee_adjustments DROP CONSTRAINT employee_adjustments_type_check;
+ALTER TABLE public.employee_adjustments ADD CONSTRAINT employee_adjustments_type_check CHECK (type IN ('overtime', 'advance', 'fuel_allowance', 'meal_allowance'));
