@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image, PackageCheck } from 'lucide-react';
+import { Navigation, Play, Square, MapPin, Clock, Route, AlertTriangle, Camera, CheckSquare, Send, X, Image, PackageCheck, Fuel } from 'lucide-react';
 import SignaturePad from '@/components/employee/SignaturePad';
 import ToolInventory from '@/components/employee/ToolInventory';
+import FuelLogForm from '@/components/fleet/FuelLogForm';
 import { Geolocation } from '@capacitor/geolocation';
 
 interface Trip {
@@ -68,6 +69,9 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
   const [tripPhotos, setTripPhotos] = useState<{ id: string; image_url: string; description: string | null }[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fuel
+  const [showFuel, setShowFuel] = useState(false);
 
   const isDeliveryMode = activeTrip?.montagem_status === 'concluida';
 
@@ -401,7 +405,7 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex flex-col items-center gap-1 p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors"
@@ -409,6 +413,14 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
                 <Camera className="w-5 h-5 text-blue-600" />
                 <span className="text-xs font-bold text-blue-700">{uploading ? 'Enviando...' : 'Foto'}</span>
                 <span className="text-[10px] text-blue-500">{tripPhotos.length} foto(s)</span>
+              </button>
+              <button
+                onClick={() => setShowFuel(!showFuel)}
+                className="flex flex-col items-center gap-1 p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors"
+              >
+                <Fuel className="w-5 h-5 text-orange-600" />
+                <span className="text-xs font-bold text-orange-700">Abastecer</span>
+                <span className="text-[10px] text-orange-500">Combustível</span>
               </button>
               <button
                 onClick={() => setShowSOS(!showSOS)}
@@ -475,6 +487,15 @@ export default function DriverTripPanel({ employeeId, employeeName }: DriverTrip
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Fuel Log Panel */}
+            {showFuel && (
+              <FuelLogForm
+                employeeId={resolvedEmployeeId || employeeId}
+                tripId={activeTrip.id}
+                onSaved={() => setShowFuel(false)}
+              />
             )}
 
             {/* SOS Panel */}

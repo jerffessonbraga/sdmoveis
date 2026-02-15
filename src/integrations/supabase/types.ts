@@ -291,6 +291,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_records: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          liters: number | null
+          notes: string | null
+          odometer_km: number
+          price_per_liter: number
+          receipt_url: string | null
+          total_paid: number
+          trip_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          liters?: number | null
+          notes?: string | null
+          odometer_km: number
+          price_per_liter: number
+          receipt_url?: string | null
+          total_paid: number
+          trip_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          liters?: number | null
+          notes?: string | null
+          odometer_km?: number
+          price_per_liter?: number
+          receipt_url?: string | null
+          total_paid?: number
+          trip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_records_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_requests: {
         Row: {
           admin_note: string | null
