@@ -741,6 +741,7 @@ export type Database = {
       trip_checklists: {
         Row: {
           checked: boolean
+          checklist_type: string
           created_at: string
           id: string
           label: string
@@ -749,6 +750,7 @@ export type Database = {
         }
         Insert: {
           checked?: boolean
+          checklist_type?: string
           created_at?: string
           id?: string
           label: string
@@ -757,6 +759,7 @@ export type Database = {
         }
         Update: {
           checked?: boolean
+          checklist_type?: string
           created_at?: string
           id?: string
           label?: string
@@ -904,6 +907,8 @@ export type Database = {
           employee_id: string
           ended_at: string | null
           id: string
+          montagem_status: string
+          project_id: string | null
           started_at: string
           status: string
         }
@@ -913,6 +918,8 @@ export type Database = {
           employee_id: string
           ended_at?: string | null
           id?: string
+          montagem_status?: string
+          project_id?: string | null
           started_at?: string
           status?: string
         }
@@ -922,6 +929,8 @@ export type Database = {
           employee_id?: string
           ended_at?: string | null
           id?: string
+          montagem_status?: string
+          project_id?: string | null
           started_at?: string
           status?: string
         }
@@ -931,6 +940,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "client_projects"
             referencedColumns: ["id"]
           },
         ]
