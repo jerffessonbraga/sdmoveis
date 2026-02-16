@@ -304,15 +304,25 @@ const App: React.FC = () => {
                 <NavIcon icon="shield" label="Garantia" active={view === ViewMode.WARRANTY} onClick={() => setView(ViewMode.WARRANTY)} />
                 <NavIcon icon="message-square" label="Chat" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} />
                 <NavIcon icon="book-open" label="Pós-Venda" active={view === ViewMode.AFTER_SALES} onClick={() => setView(ViewMode.AFTER_SALES)} />
-                <a 
-                  href="https://www.instagram.com/sdmoveisprojetados/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const username = "sdmoveisprojetados";
+                    const appUrl = `instagram://user?username=${username}`;
+                    const webUrl = `https://www.instagram.com/${username}/`;
+                    const start = Date.now();
+                    window.location.href = appUrl;
+                    setTimeout(() => {
+                      if (Date.now() - start < 1000) {
+                        window.open(webUrl, "_blank");
+                      }
+                    }, 500);
+                  }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-pink-500 hover:bg-white/10 transition-all"
                 >
                   <Instagram className="w-5 h-5" />
                   <span className="text-[10px] font-bold">Instagram</span>
-                </a>
+                </button>
               </>
             )}
           </nav>
